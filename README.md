@@ -32,7 +32,7 @@ python train.py
 ```
 or lauch training with N GPUs on one node:
 ```train_ddp
-torchrun --nnodes=1 --nproc_per_node=N train.py
+torchrun --nnodes=1 --nproc_per_node=N train_ddp.py
 ```
 
 ## Evaluation
