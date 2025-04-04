@@ -8,8 +8,8 @@ This is the official implementation of paper "Massive Editing for Large Language
 First, download and set up the repo:
 
 ```setup
-git clone https://github.com/XX.git
-cd MeG
+git clone https://github.com/RodeWayne/MeG-for-Knowledge-Editing.git
+cd MeG-for-Knowledge-Editing
 ```
 We provide an environment.yml file that can be used to create a Conda environment. 
 
