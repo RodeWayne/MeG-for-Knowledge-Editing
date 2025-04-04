@@ -1,0 +1,22 @@
+type: "paradit"
+gpu: "4"
+model_path: "/home/wentao/xzw/LLM/phi-2" # gpt-j-6b phi-2  /home/wentao/xzw/LLM/phi-2
+model_state_dir: "/home/wentao/xzw/checkpoint/088_20250220231059/checkpoints/model_epoch_all_30000.pth"
+data_type: "cf"
+data_range: 1024 # 1022 1005
+fi: 1024 # 1024
+layer: 29 # 29
+noisetype: 0
+ps: 100
+is_fc2bias: true   # true false
+hidden: 768
+nheads: 12
+gtype: "bert2para" # hidden2para  bert2para
+batch_size: 512
+bmodel_train_state_path: "/home/wentao/xzw/LLM/bert_phi2_cf_checkpoints_infoNCE/model_epoch_5100.pth"
+result_path: "result_evaluation/"
+model_para_type: "phi2" # phi2 gptj
+para_dir: "/home/wentao/xzw/data_paras_v2/cf_phi2/all"
+data_dir: "/home/wentao/xzw/data_paras_v2/loc/cf_phi2_loc_10000.json"
+is_normal: true
+is_rel: true
