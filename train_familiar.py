@@ -26,9 +26,9 @@ class CustomDataset(Dataset):
         self.original_data = []
         # edit data dir
         if data_type == 'cf':
-            data_dir = 'data/cf_fake_id.json'
+            data_dir = 'data/train_familiar/cf_fake_id.json'
         else:
-            data_dir = 'data/zsre_{}_fake_id.json'.format(model_name)
+            data_dir = 'data/train_familiar/zsre_{}_fake_id.json'.format(model_name)
         # load data
         with open(data_dir, "r") as f:
             raw_data = json.load(f)

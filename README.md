@@ -25,7 +25,7 @@ Stage 0: Data Prepare:
 
 download the data we final use to folder ```./data```
 
-if you want to know how we get our data for final use, please run:
+if you want to know how we get our data for final use from raw data, please run:
 ```cmd
 cd data
 bash filter_data.sh
