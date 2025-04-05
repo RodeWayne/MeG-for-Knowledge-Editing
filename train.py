@@ -58,11 +58,10 @@ def create_logger(logging_dir):
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        # 连接到公网地址，但不会真的发送数据
         s.connect(("8.8.8.8", 80))
         local_ip = s.getsockname()[0]
     except Exception:
-        local_ip = "127.0.0.1"  # 兜底策略
+        local_ip = "127.0.0.1"
     finally:
         s.close()
     return local_ip
@@ -74,7 +73,7 @@ def main(args):
     torch.manual_seed(seed)
     torch.cuda.set_device(device)
 
-    # 1. 准备日志
+    # 1. init result log
     results_dir = "results"
     os.makedirs(results_dir, exist_ok=True)  # Make results folder (holds all experiment subfolders)
     now = datetime.now()
@@ -87,7 +86,7 @@ def main(args):
     os.makedirs(experiment_dir, exist_ok=True)
     logger = create_logger(experiment_dir)
 
-    # 4. 配置基础模型
+    # 4. init model
     seq_len = args.seq_len  # 5121 8193
     seq_len_y = 768
     patchsize = args.ps
@@ -101,7 +100,7 @@ def main(args):
     opt = torch.optim.AdamW(denoise.parameters(), lr=args.lr, weight_decay=0)
     start_epoch = 0
 
-    # # 尝试加载检查点
+    # # load checkpoint
     # start_epoch = 0
     # save_filename = "/home/wentao/xzw/checkpoint/021_20250123012939/checkpoints/model_epoch_all_10000.pth"
     # if os.path.exists(save_filename):
@@ -110,61 +109,12 @@ def main(args):
     #     opt.load_state_dict(checkpoint["optimizer_state_dict"])
     #     start_epoch = checkpoint["epoch"] + 1
     #     print(f"Resumed from checkpoint: {save_filename} (Epoch {start_epoch})")
-    #     # 删除不必要的变量
+    #     # gc gpu cache
     #     del checkpoint
 
-    # 3. 配置数据
-    # paras_dir = '/home/wentao/xzw/data_paras/zsre_phi2_neuron_start_from_new/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/zsre_phi2_neuron_start_from_new/train_success_data_phi2_all.json'
-
-    # paras_dir = '/home/wentao/xzw/phi2_29_after_fc2_bias_orig_init_paras/phi2_prompt_1_1_neuron_1_layer_29'
-    # rephrases_dir='/home/wentao/xzw/phi2_29_after_fc2_bias_orig_init_paras/train_success_data_phi2_prompt_1_1_neuron_1_layer_29.json'
-
-    # ft 成功率 超90%
-    # paras_dir = '/home/wentao/xzw/data_paras/method_1_6/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/method_1_6/train_success_data_phi2_prompt_1_6_neuron_1_layer_29_len_17203.json'
-
-    # zsre phi2与gpt交集
-    # paras_dir = '/home/wentao/xzw/data_paras/data_phi2/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/data_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29_len_16987.json'
-
-    # phi2 cf zsre
-    # paras_dir = '/home/wentao/xzw/data_paras/cf_phi2_epoch_80/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/cf_phi2_epoch_80/multi_counterfact_new_id.json'
-
-    # lqq
-    # paras_dir = '/home/wentao/CL_fusion/lqq/add_neuron/step_1_data/zsre_gptj/all'
-    # rephrases_dir = '/home/wentao/CL_fusion/lqq/add_neuron/step_1_data/zsre_gptj/train_success_data_gptj_prompt_1_6_neuron_1_layer_20.json'
-
-    # cf gptj
-    # paras_dir = '/home/wentao/xzw/data_paras/cf_gptj_epoch_75_loss_0.4/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/cf_phi2_epoch_80/multi_counterfact_new_id.json'
-
-    # 训练ft gptj zsre new para 换了一个gptj模型文件
-    # paras_dir = '/home/wentao/xzw/data_paras/new_test_gptj_1000_select/zsre_layer_19/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/new_test_gptj_1000_select/zsre_layer_19/train_success_data_gptj_prompt_3_6_neuron_1_layer_19.json'
-
-    # 训练gpt zsre 9 层 1024
-    # paras_dir = '/home/wentao/xzw/data_paras/zsre_layer_9/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/zsre_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json'
-
-    # 训练gptj cf 9层 1024
-    # paras_dir = '/home/wentao/xzw/data_paras/cf_layer_9/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/cf_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json'
-
-    # 训练phi2 zsre 3层 1024
-    # paras_dir = '/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_3/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_3/train_success_data_phi2_prompt_1_6_neuron_1_layer_3.json'
-
-    # 训练phi2 zsre 28层 1024
-    # paras_dir = '/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_28/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_28/train_success_data_phi2_prompt_1_6_neuron_1_layer_28.json'
-
-    # gptj zsre 10000
     paras_dir = args.paras_dir
     rephrases_dir = args.rephrases_dir
-
-    # 29层after：1027=1024
+    # load data
     if args.data_type == "cf":
         dataset = MyDataset_cf(args,paras_dir,rephrases_dir,gpu=args.gpu,is_noise=args.is_noise, noisetype=args.noisetype,model_para_type=args.model_para_type, layer=args.layer,fileindex=args.fi)
     elif args.data_type == "zsre":
@@ -178,7 +128,7 @@ def main(args):
     hostname = socket.gethostname()
     local_ip = get_local_ip()
     # local_ip = socket.gethostbyname(hostname)
-    ###=================展示配置
+    ###=================show setting
     logger.info(f"---->Begin training ,add y, Train {len(dataset)},  "
                 f"IP:{local_ip}, process_id:{os.getpid()}, "
                 f"log_path:{log_path}")
@@ -262,22 +212,20 @@ def main(args):
                     sums.append(sum)
                     logger.info(f"step:{epoch+1};l2_norm:{l2_norms}")
                     logger.info(f"step:{epoch+1};mean_l2_norm:{mean_l2_norm};std_l2_norm:{std_l2_norm}")
-                # 保存lr2效果前三的checkpoint
+                # Save the top 3 checkpoints with the best lr2 performance
                 sums_tensor = torch.tensor(sums)
-                # sum = sums_tensor.mean()
-                sum = round(sums_tensor.mean().item(), 4)  # 取 4 位小数
+                sum = round(sums_tensor.mean().item(), 4)
                 if len(top3) < 3:
-                    top3.append([sum, epoch])  # 如果长度小于 3，直接添加
+                    top3.append([sum, epoch])
                     save_checkpoint(checkpoint_dir, denoise, epoch, logger, opt ,str(sum))
                 else:
                     max_index = max(enumerate(top3), key=lambda x: x[1][0])[0]
                     max_value = top3[max_index][0]
                     old_epoch = top3[max_index][1]
                     if sum < max_value:
-                        # 删除
                         old_checkpoint_path = os.path.join(checkpoint_dir, f'model_epoch_all_{old_epoch + 1}_sum{max_value}.pth')
                         os.remove(old_checkpoint_path)
-                        # 替换最大值
+                        # Replace the maximum value
                         top3[max_index] = [sum, epoch]
                         save_checkpoint(checkpoint_dir, denoise, epoch, logger, opt,str(sum))
 
@@ -286,7 +234,6 @@ def save_checkpoint(checkpoint_dir, denoise, epoch, logger, opt,name=None):
     save_filename = os.path.join(checkpoint_dir, f'model_epoch_all_{epoch + 1}.pth')
     if name is not None:
         save_filename = os.path.join(checkpoint_dir, f'model_epoch_all_{epoch + 1}_sum{name}.pth')
-    # torch.save(denoise.module.state_dict(), save_filename)
     torch.save({
         "model_state_dict": denoise.state_dict(),
         "optimizer_state_dict": opt.state_dict(),
@@ -296,7 +243,7 @@ def save_checkpoint(checkpoint_dir, denoise, epoch, logger, opt,name=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    ## 固定配置
+    ## Fixed config
     parser.add_argument("--ps", type=int, default=100)
     parser.add_argument("--nheads", type=int, default=12)
     parser.add_argument("--nblocks", type=int, default=24)
@@ -305,19 +252,19 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate for AdamW optimizer")
     parser.add_argument("--noisepara_dir", type=str, default='/home/wentao/xzw/data_paras/my_noise_paras')
     parser.add_argument("--is_bert_norm", action="store_true",default=True)
-    # 动态固定
+    # Dynamic config
     parser.add_argument("--bertft_dir", type=str, default='/home/wentao/xzw/LLM/bert_gptj_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth')
     parser.add_argument("--paras_dir", type=str, default='/home/wentao/xzw/data_paras/zsre_phi2/all')
     parser.add_argument("--rephrases_dir", type=str, default='/home/wentao/xzw/data_paras/zsre_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json')
     parser.add_argument("--layer", type=int, default=9)
     parser.add_argument("--seq_len", type=int, default=8193)  # 5121 8193
     parser.add_argument("--isbert_0or1", type=int, default=1)
-    ## noise para
+    ## Noise config
     parser.add_argument("--is_noise", action="store_true")
     parser.add_argument("--noisetype", type=int, default=0)
     parser.add_argument("--noise_n1024", type=float, default=1)
     parser.add_argument("--noisetype_10or2", type=int, default=1)
-    ## 超参配置
+    ## Hyperparameter config
     parser.add_argument("--model_para_type", type=str, default='gptj')
     parser.add_argument("--data_type", type=str, default='zsre')
     parser.add_argument("--gpu", type=str, default='1')

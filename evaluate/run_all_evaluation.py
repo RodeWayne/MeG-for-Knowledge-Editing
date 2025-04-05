@@ -53,23 +53,21 @@ def main():
     parser.add_argument("--model_para_type", type=str, default='gptj')
     parser.add_argument("--data_type", type=str, default='zsre')
     args = parser.parse_args()
-    # 加载参数
+    # load config
     config = load_config(config_path=f"evaluate/hparams/run_all_evaluation_config_paradit_{args.model_para_type}_{args.data_type}.yaml")
     config = Namespace(**config)
     config.result_path=config.result_path+datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + "/"
-    # 初始化日志
+    # init logging
     setup_logging(config.result_path + "log.txt")
-    print("==================打印配置start")
+    print("==================print setting start")
     for key, value in vars(config).items():
         print(f"{key}: {value}")
     result_log = config.result_path + "result.log"
-    print("==================打印配置end")
+    print("==================print setting end")
 
     log_result(result_log, f"model_state_dir：{config.model_state_dir}")
 
-    # 评测指标
     try:
-        # 合并
         accuracy_sr,mean_accuracy_sr_tf, std_accuracy_sr_tf = evaluate_sr_self_and_tf_parallel.main(config)
         log_result(result_log, f"evaluate_sr: {accuracy_sr:.4f}")
         log_result(result_log, f"evaluate_sr_tf: mean={mean_accuracy_sr_tf:.4f}, std={std_accuracy_sr_tf:.4f}")
@@ -83,16 +81,15 @@ def main():
         log_result(result_log, f"evaluate_lr_zsre: {accuracy_lr_zsre:.4f}")
         log_result(result_log,f"evaluate_lr_zsre_tf: mean={mean_accuracy_lr_zsre_tf:.4f}, std={std_accuracy_lr_zsre_tf:.4f}")
 
-        # 获取nums_para,train_epoch
         nums_para=config.data_range
         if config.type=="memit":
             train_epoch="memit"
         elif config.type=="paradit":
             train_epoch=config.model_state_dir.split('_')[-1].split('.')[0]
-        # 打印所有结果标题
+        # print title
         log_result(result_log,
                    f"nums_para,train_epoch,sr,gr,lr_zsre,\"sr_tf (mean,std)\",\"gr_tf (mean,std)\",\"lr_zsre_tf (mean,std)\"")
-        # 打印对应的结果
+        # print result
         log_result(
             result_log,
             f"{nums_para},{train_epoch},{accuracy_sr:.4f},{accuracy_gr:.4f},{accuracy_lr_zsre:.4f},"

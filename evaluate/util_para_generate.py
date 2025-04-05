@@ -21,30 +21,24 @@ from transformers import AutoTokenizer, AutoModel
 import paramiko
 import socket
 def load_model(model, checkpoint_path, device='cuda:'):
-    # 重新加载模型和优化器的状态
     checkpoint = torch.load(checkpoint_path, map_location=device)
-    # 由于我们只保存了部分参数，需要使用 strict=False 来允许部分参数不匹配
     model.load_state_dict(checkpoint['model_state_dict'], strict=False)
-    # 获取保存时的epoch信息
     epoch = checkpoint['epoch']
     print(f"Model loaded from epoch {epoch}")
     return model, epoch
 class ParaFactory:
     def __init__(self,args,model_para_type,device,ps,hidden,nheads,nblocks,modelPth,bmodelTrainStatePath):
-        # 初始化bert
+        # init bert
         self.device = device
         cache_dir = '/home/wentao/xzw/LLM/bert-base-uncased'
         self.model_bert = BertModel.from_pretrained(cache_dir)
         self.tokenizer_bert = BertTokenizer.from_pretrained(cache_dir)
         self.args=args
-        # cache_dir = '/home/wentao/xzw/LLM/multi-qa-mpnet-base-dot-v1'
-        # self.tokenizer_bert = AutoTokenizer.from_pretrained(cache_dir)
-        # self.model_bert = AutoModel.from_pretrained(cache_dir)
 
         if bmodelTrainStatePath != "None":
             print("load bert model state ... ")
             self.model_bert, _ = load_model(self.model_bert, bmodelTrainStatePath, device)
-        # 配置paradit
+        # init model
         if model_para_type =="phi2":
             self.seq_len = 5121
         elif model_para_type =="gptj":
@@ -56,7 +50,7 @@ class ParaFactory:
         self.denoise = denoise.to(device)
         state_dict = torch.load(
             modelPth,
-            map_location=device  # 加载到CPU
+            map_location=device
         )
         if(nheads!=12):
             self.denoise.load_state_dict(state_dict)
@@ -78,17 +72,16 @@ class ParaFactory:
             layer_input = layer_input[-1]
             layer_inputs.append(layer_input)
         if(gtype=="bert2para"):
-            # input = input.split("Instruct:Answer the following question in less than 5 words. ")[1].split("\nOutput:")[0]
             encoded_bert_input = self.tokenizer_bert(input, return_tensors='pt')
-            max_length = self.tokenizer_bert.model_max_length  # 你也可以手动设置 max_length = 512
-            # 检查输入序列长度是否超过最大长度
+            max_length = self.tokenizer_bert.model_max_length
+            # check input length
             input_length = encoded_bert_input['input_ids'].shape[1]
             if input_length > max_length:
                 return None
             output_bert = self.model_bert(**encoded_bert_input)
             outhidden = output_bert.last_hidden_state[:, 0, :]
             y0 = outhidden.to(self.device)
-            y0 = y0.float()  # 转换为 float32
+            y0 = y0.float()
             x_gen = torch.randn(1, 1, self.seq_len).to(self.device)
             model_kwargs = dict(y=y0)
             samples = self.diffusion.p_sample_loop(
@@ -98,16 +91,15 @@ class ParaFactory:
             x_recov = samples * 0.01
         else:
             encoded_input = srctokenizer(input, return_tensors='pt').to(self.device)
-            # 选择要获取输入的层
+            # select model layer
             # target_layer = srcmodel.model.layers[layer].mlp.fc1
             target_layer = srcmodel.transformer.h[layer].mlp.fc_in
-
-            # 注册钩子
+            # register hook
             hook_handle = target_layer.register_forward_hook(hook)
             outputs = srcmodel.generate(**encoded_input, max_length=200)
             outhidden = layer_inputs[0]
             y0 = outhidden.to(self.device)
-            y0 = y0.float()  # 转换为 float32
+            y0 = y0.float()
             x_gen = torch.randn(1, 1, self.seq_len).to(self.device)
             model_kwargs = dict(y=y0)
             samples = self.diffusion.p_sample_loop(
@@ -118,55 +110,50 @@ class ParaFactory:
 
         return x_recov
     def generate_paral(self,is_rel_kns,inputs,gtype,srcmodel,srctokenizer,layer):
-        # 给 inputs 添加索引信息
+        # add index information to inputs
         indexed_inputs = list(enumerate(inputs))
-        # 根据 is_rel_kns 拆分两部分
+        # split into two parts based on is_rel_kns
         rel_inputs = [inp for idx, inp in indexed_inputs if is_rel_kns[idx]]
         non_rel_inputs = [inp for idx, inp in indexed_inputs if not is_rel_kns[idx]]
         results = {}
         if(gtype=="bert2para" and rel_inputs):
-            print(f"正在生成参数：{len(rel_inputs)}")
+            print(f"generate para number：{len(rel_inputs)}")
             encoded_bert_input = self.tokenizer_bert(rel_inputs, return_tensors='pt',padding=True,return_attention_mask=True)
-            max_length = self.tokenizer_bert.model_max_length  # 你也可以手动设置 max_length = 512
-            # 检查输入序列长度是否超过最大长度
+            max_length = self.tokenizer_bert.model_max_length  #
+            # check input length
             input_length = encoded_bert_input['input_ids'].shape[1]
             if input_length > max_length:
                 return None
             output_bert = self.model_bert(**encoded_bert_input)
             hidden_states = output_bert.last_hidden_state  # [batch_size, seq_len, hidden_dim]
-            # 使用 Attention Mask 掩码填充部分
             attention_mask = encoded_bert_input['attention_mask']
             masked_hidden_states = hidden_states * attention_mask.unsqueeze(-1)
-            # 获取 [CLS] token 的隐藏状态
             outhidden = masked_hidden_states[:, 0, :]  # [CLS] 表示序列语义信息
             if self.args.is_normal:
-                outhidden = F.normalize(outhidden, p=2, dim=-1)  # L2 归一化
+                outhidden = F.normalize(outhidden, p=2, dim=-1)  # norm
             y0 = outhidden.to(self.device)
-            y0 = y0.float()  # 转换为 float32
+            y0 = y0.float()
             x_gen = torch.randn(len(rel_inputs), self.seq_len).to(self.device)
             model_kwargs = dict(y=y0)
             samples = self.diffusion.p_sample_loop(
                 self.denoise, x_gen.shape, x_gen, clip_denoised=False, model_kwargs=model_kwargs, progress=True,
                 device=self.device
             )
-            # samples=torch.zeros(len(rel_inputs), 1, self.seq_len).to(self.device)
             x_recov = samples * 0.01
             for i, idx in enumerate([idx for idx, _ in indexed_inputs if is_rel_kns[idx]]):
                 results[idx] = x_recov[i]
         elif gtype=="hidden2para":
             x_recov=None
             encoded_input = srctokenizer(inputs, return_tensors='pt',padding=True,return_attention_mask=True).to(self.device)
-            # 选择要获取输入的层
+            # select model layer
             target_layer = srcmodel.transformer.h[layer].mlp.fc_in
-            # 注册钩子
+            # register hook
             model_layer_input = None
             def hook(module, input, output):
-                nonlocal model_layer_input  # 明确声明修改外部变量
+                nonlocal model_layer_input
                 layer_input = input[0]
-                # 获取 attention_mask 的最后一个非零位置
                 attention_mask = encoded_input['attention_mask']
-                last_token_idx = attention_mask.sum(dim=1) - 1  # 找到最后一个有效 token 的索引
-                # 提取最后一个有效 token 的输出
+                last_token_idx = attention_mask.sum(dim=1) - 1
                 batch_size = layer_input.size(0)
                 model_layer_input = layer_input[range(batch_size), last_token_idx]
             hook_handle = target_layer.register_forward_hook(hook)
@@ -174,7 +161,7 @@ class ParaFactory:
             outhidden=model_layer_input
             hook_handle.remove()
             y0 = outhidden.to(self.device)
-            y0 = y0.float()  # 转换为 float32
+            y0 = y0.float()
             x_gen = torch.randn(len(inputs), 1, self.seq_len).to(self.device)
             model_kwargs = dict(y=y0)
             samples = self.diffusion.p_sample_loop(
@@ -182,11 +169,11 @@ class ParaFactory:
                 device=self.device
             )
             x_recov = samples * 0.01
-        # 对 non_rel_inputs 直接赋值为全 0
+        # assign all-zero tensor to non_rel_inputs
         zero_tensor = torch.zeros(1, self.seq_len).to(self.device)
         for idx in [idx for idx, _ in indexed_inputs if not is_rel_kns[idx]]:
             results[idx] = zero_tensor
-        # 按原索引顺序还原结果
+        # restore result order by original indices
         ordered_results = torch.stack([results[idx] for idx, _ in indexed_inputs])
         return ordered_results
 
@@ -195,7 +182,7 @@ def init_model_phi(model_path,device):
     return model.to(device)
 
 def init_model_phi2(model_para_type,model_path,device,layer,is_fc2bias):
-    if model_para_type == "phi2": # 半精度
+    if model_para_type == "phi2":
         model = AutoModelForCausalLM.from_pretrained(model_path,
                                                      torch_dtype=torch.float16,
                                                      trust_remote_code=True
@@ -211,7 +198,7 @@ def init_model_phi2(model_para_type,model_path,device,layer,is_fc2bias):
             model.model.layers[layer].mlp.fc2.weight[:, :num] = original_layer_2.weight[:, :num].clone().detach()
             if is_fc2bias:
                 model.model.layers[layer].mlp.fc2.bias = original_layer_2.bias
-    elif model_para_type == "gptj": # 半精度
+    elif model_para_type == "gptj":
         num = 16384
         model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16,
                                                      trust_remote_code=True)
@@ -229,14 +216,14 @@ def init_model_phi2(model_para_type,model_path,device,layer,is_fc2bias):
     return model.to(device)
 
 def get_edit_model_memit(model,device,model_state_dir):
-    params_dir = Path(model_state_dir)  # 替换为实际路径
+    params_dir = Path(model_state_dir)
     params_state=torch.load(params_dir, map_location=torch.device("cuda:8"))
     model.load_state_dict(params_state,strict=False)
     params_state = {k: v.cpu() for k, v in params_state.items()}
     del params_state
     gc.collect()
     torch.cuda.empty_cache()
-    model.eval()  # 切换到评估模式
+    model.eval()
     return model
 def get_edit_model(model_para_type,model,x_recov,layer):
     sample = x_recov.view(-1)
@@ -249,7 +236,6 @@ def get_edit_model(model_para_type,model,x_recov,layer):
         model.model.layers[layer].mlp.fc1.bias[-1] = torch.tensor(fc1_bias_recovered, dtype=torch.float16)
         model.model.layers[layer].mlp.fc2.weight[:, -1:] = torch.tensor(fc2_weight_recovered, dtype=torch.float16)
     elif model_para_type == "gptj":
-        # sample=torch.randn(8193)
         fc1_weight_recovered = sample[:4096]
         fc1_bias_recovered = sample[4096:4096 + 1]
         fc2_weight_recovered = sample[4096 + 1:]
@@ -339,36 +325,34 @@ def test_batch_prediction_acc(model, tok, prompts: typing.List[str], target,devi
         correct_id = correct_id[:, 0].squeeze()
         return (ans == correct_id).detach().cpu().numpy().tolist()
 def adjust_dots(s):
-    if s.endswith('..'):  # 如果结尾是两个句号
-        return s[:-1]  # 保留一个句号
-    elif s.endswith('.'):  # 如果结尾是一个句号
-        return s[:-1]  # 去掉句号
-    return s  # 其他情况保持不变
+    if s.endswith('..'):  # If the string ends with two periods
+        return s[:-1]  # Keep one period
+    elif s.endswith('.'):  # If the string ends with one period
+        return s[:-1]  # Remove the period
+    return s  # Keep unchanged in other cases
 
 def initDeviceModelDataAndParadit(args):
     # Initialize variables
     para_factory = None
     all_ids = None
     xparas = None
-    # 加载设备
     device = torch.device(f"cuda:{args.gpu}")
-    # 加载数据
+    # load data
     with open(args.data_dir, "r") as f:
         zsre_datas = json.load(f)
     zsre_datas_range = zsre_datas[:args.data_range]
-    # 加载模型
+    # load model
     if args.type == "memit":
         model = init_model_phi(args.model_path, device)
         # edit_model=model
         edit_model = get_edit_model_memit(model, device, model_state_dir=args.model_state_dir)
     elif args.type == "paradit":
-        # 加载参数
         all_ids, xparas = getValidFileid(args.model_para_type, args.para_dir, args.fi, args.layer)
         edit_model = init_model_phi2(args.model_para_type, args.model_path, device, layer=args.layer,
                                 is_fc2bias=args.is_fc2bias)
     tokenizer = AutoTokenizer.from_pretrained(args.model_path, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
-    # 加载dit
+    # load para_factory
     if args.type == "paradit":
         para_factory = ParaFactory(args,args.model_para_type, device, ps=args.ps, hidden=args.hidden, nheads=args.nheads,
                                    nblocks=12, modelPth=args.model_state_dir,
@@ -392,7 +376,7 @@ def getLabel(args, data):
     return label
 from datetime import datetime, timedelta
 def format_elapsed_time(seconds):
-    """格式化时间为 d 天 h 小时 m 分 s 秒"""
+    """Format time as d day h hous m minutes s seconds"""
     delta = timedelta(seconds=int(seconds))
     days = delta.days
     hours, remainder = divmod(delta.seconds, 3600)

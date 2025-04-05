@@ -75,7 +75,7 @@ def main(args):
     torch.cuda.set_device(device)
     print(f"Starting rank={rank}, seed={seed}, world_size={dist.get_world_size()}.")
 
-    # 1. 准备日志
+    # 1. init result log
     if rank == 0:
         results_dir = "results"
         os.makedirs(results_dir, exist_ok=True)  # Make results folder (holds all experiment subfolders)
@@ -90,7 +90,7 @@ def main(args):
         logger = create_logger(experiment_dir)
     else:
         logger = create_logger(None)
-    # 4. 配置基础模型
+    # 4.init model
     seq_len = args.seq_len  # 5121 8193
     seq_len_y = 768
     patchsize = args.ps
@@ -103,7 +103,7 @@ def main(args):
     diffusion = create_diffusion(timestep_respacing="")  # default: 1000 steps, linear noise schedule
     opt = torch.optim.AdamW(denoise.parameters(), lr=args.lr, weight_decay=0)
 
-    # 尝试加载检查点
+    # load checkpoint
     start_epoch = 0
     # save_filename="/home/wentao/xzw/checkpoint/temp/186_026_20250205001625/checkpoints/model_epoch_all_30000.pth"
     #
@@ -114,36 +114,9 @@ def main(args):
     # print(f"Resumed from checkpoint: {save_filename} (Epoch {start_epoch})")
     # del checkpoint
 
-    # 3. 配置数据
-    # paras_dir = '/home/wentao/xzw/data_paras/method_1_6/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/method_1_6/train_success_data_phi2_prompt_1_6_neuron_1_layer_29_len_17203.json'
-    # paras_dir = '/home/wentao/xzw/data_paras/data_phi2/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/data_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29_len_16987.json'
-
-    # paras_dir = '/home/wentao/xzw/data_paras/cf_layer_9/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/cf_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json'
-
-    # phi2 cf zsre 1
-    # paras_dir = '/home/wentao/xzw/data_paras/cf_phi2_epoch_80/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/cf_phi2_epoch_80/multi_counterfact_new_id.json'
-
-    # 最终版本： phi zsre 10000
-    # paras_dir = '/home/wentao/xzw/data_paras/zsre_phi2/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/zsre_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json'
-
-    # 最终版本： gptj zsre 10000
-    # paras_dir = '/home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json'
-
-    # 最终版本： phi2 cf 10000
-    # paras_dir = '/home/wentao/xzw/data_paras/cf_phi2/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/cf_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json'
-
-    # 最终版本： gptj cf 10000
-    # paras_dir = '/home/wentao/xzw/data_paras/cf_gptj/cf_layer_9/all'
-    # rephrases_dir = '/home/wentao/xzw/data_paras/cf_gptj/cf_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json'
     paras_dir = args.paras_dir
     rephrases_dir = args.rephrases_dir
+    # load data
     if args.data_type == "cf":
         dataset = MyDataset_cf(args, paras_dir, rephrases_dir, gpu=device, is_noise=args.is_noise,
                                noisetype=args.noisetype, model_para_type=args.model_para_type, layer=args.layer,
@@ -170,7 +143,7 @@ def main(args):
         # pin_memory=True,
         # drop_last=True
     )
-    ###=================展示配置
+    ###=================show setting
     if rank == 0:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         log_path = current_dir + "/" + experiment_dir + "/" + "log.txt"
@@ -205,7 +178,7 @@ def main(args):
         sampler.set_epoch(epoch)
         denoise.train()
         epoch_loss = 0
-        num_batches = 0  # 记录 batch 数
+        num_batches = 0
         for x, y in loader:
             # if rank == 0:
             # print(f"epoch:{epoch}, rank:{rank}, x_shape:{x.shape}, y_shape:{y.shape}")
@@ -231,15 +204,9 @@ def main(args):
             running_loss += loss.item()
             log_steps += 1
             train_steps += 1
-            epoch_loss += loss.item()  # 累积 loss
-            num_batches += 1  # 记录 batch 数
+            epoch_loss += loss.item()
+            num_batches += 1
         if (epoch+1) % 100 == 0:
-            # Reduce loss history over all processes:
-            # avg_loss = torch.tensor(running_loss / log_steps, device=device)
-            # dist.all_reduce(avg_loss, op=dist.ReduceOp.SUM)
-            # avg_loss = avg_loss.item() / dist.get_world_size()
-            # logger.info(f"step:{epoch+1}; loss={avg_loss}; loss_vb:{loss_vb}; loss_mse:{loss_mse}; ")
-
             avg_epoch_loss = torch.tensor(epoch_loss / num_batches, device=device)
             dist.all_reduce(avg_epoch_loss, op=dist.ReduceOp.SUM)
             avg_epoch_loss = avg_epoch_loss.item() / dist.get_world_size()
@@ -248,7 +215,7 @@ def main(args):
             running_loss = 0
             log_steps = 0
         if (epoch + 1) % 10000 == 0:
-            # 保存模型参数
+            # save model checkpoint
             if rank == 0:
                 save_checkpoint(checkpoint_dir, denoise, epoch, logger, opt)
             dist.barrier()
@@ -273,26 +240,25 @@ def main(args):
                         sums.append(sum)
                         logger.info(f"step:{epoch+1};l2_norm:{l2_norms}")
                         logger.info(f"step:{epoch+1};mean_l2_norm:{mean_l2_norm};std_l2_norm:{std_l2_norm}")
-                    # 保存lr2效果前三的checkpoint
+                    # Save the top 3 checkpoints with the best lr2 performance
                     sums_tensor = torch.tensor(sums)
                     # sum = sums_tensor.mean()
-                    sum = round(sums_tensor.mean().item(), 4)  # 取 4 位小数
+                    sum = round(sums_tensor.mean().item(), 4)
 
                     if len(top3) < 3:
-                        top3.append([sum,epoch])  # 如果长度小于 3，直接添加
+                        top3.append([sum,epoch])
                         save_checkpoint(checkpoint_dir, denoise, epoch, logger, opt,str(sum))
                     else:
                         max_index = max(enumerate(top3), key=lambda x: x[1][0])[0]
                         max_value = top3[max_index][0]
                         old_epoch = top3[max_index][1]
                         if sum < max_value:
-                            # 删除
                             old_checkpoint_path = os.path.join(checkpoint_dir, f'model_epoch_all_{old_epoch + 1}_sum{max_value}.pth')
                             os.remove(old_checkpoint_path)
-                            # 替换最大值
+                            # Replace the maximum value
                             top3[max_index] = [sum, epoch]
                             save_checkpoint(checkpoint_dir, denoise, epoch, logger, opt,str(sum))
-            torch.distributed.barrier()  # 等待所有进程同步
+            torch.distributed.barrier()
 
     cleanup()
 
@@ -312,7 +278,7 @@ def save_checkpoint(checkpoint_dir, denoise, epoch, logger, opt,name=None):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    ## 固定配置
+    ## Fixed config
     parser.add_argument("--global-seed", type=int, default=0)
     parser.add_argument("--num-workers", type=int, default=5)
     parser.add_argument("--ps", type=int, default=100)
@@ -323,31 +289,25 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate for AdamW optimizer")
     parser.add_argument("--noisepara_dir", type=str, default='/home/wentao/xzw/data_paras/my_noise_paras')
     parser.add_argument("--is_bert_norm", action="store_true",default=True)
-    # 动态固定
+    # Dynamic config
     parser.add_argument("--bertft_dir", type=str, default='/home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth')
     parser.add_argument("--paras_dir", type=str, default='/home/wentao/xzw/data_paras/zsre_phi2/all')
     parser.add_argument("--rephrases_dir", type=str,default='/home/wentao/xzw/data_paras/zsre_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json')
     parser.add_argument("--layer", type=int, default=29)
     parser.add_argument("--seq_len", type=int, default=5121)  # 5121 8193
     parser.add_argument("--isbert_0or1", type=int, default=1)
-    ## noise para
+    ## Noise config
     parser.add_argument("--is_noise", action="store_true")
     parser.add_argument("--noisetype", type=int, default=0)
     parser.add_argument("--noise_n1024", type=float, default=0.2)
     parser.add_argument("--noisetype_10or2", type=int, default=1)
-    ## 超参配置
+    ## Hyperparameter config
     parser.add_argument("--model_para_type", type=str, default='gptj')
     parser.add_argument("--data_type", type=str, default='zsre')
     parser.add_argument("--gpus", type=str, default='3')
     parser.add_argument("--global_batch_size", type=int, default=2392)
     parser.add_argument("--fi", type=int, default=10000)
 
-
-    # 旧的case：12=10 57=50 112=100 299=200 599=500 1185=1000
-    # 新的case(seed)：12=10 76=50 156=100 318=200 809=500 1674=1000 8209=5000 14531=9000 16109=10000
-    # 新的case(noseed)：18=10 1725=1000 8803=5000 15883=9000
-    # 新的 1713=1024 3424=2048  6773=4096  13207=8192
-###### #
     args = parser.parse_args()
     path_config = {
         "gptj": {

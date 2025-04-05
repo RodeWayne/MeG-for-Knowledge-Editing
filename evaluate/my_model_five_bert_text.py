@@ -164,7 +164,7 @@ class myDiT(nn.Module):
         pos_embed = get_1d_sincos_pos_embed_from_grid(self.pos_embed.shape[-1], np.arange(self.pos_embed.shape[1]))
         self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
         self.dropout = nn.Dropout(0.2)
-        # 初始化
+        # init
         # self.initialize_weights()
 
     def initialize_weights(self):
@@ -224,19 +224,8 @@ class myDiT(nn.Module):
         x = x.reshape(shape=(x.shape[0], 2,-1))
         if pad_amount > 0:
             x = x[:,:, :-pad_amount]
-        # model_output_e, model_var_values = torch.split(x, 1, dim=1)  # 输出 模型输出和var
+        # model_output_e, model_var_values = torch.split(x, 1, dim=1)
 
         return x
 
 
-
-
-#
-# device=torch.device('cuda:5')
-# noise = torch.randn(500,1,10).to(device)
-# t = torch.randint(0, 1000, (500,)).to(device)  # Pick random time step
-#
-#
-# model=myDiT(seq_len=10, hidden_size=384, num_heads=8,num_blocks=4).to(device)
-# resp=model(noise,t)
-# print(resp.shape)

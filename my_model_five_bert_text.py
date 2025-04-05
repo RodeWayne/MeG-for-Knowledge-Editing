@@ -224,7 +224,7 @@ class myDiT(nn.Module):
         x = x.reshape(shape=(x.shape[0], 2,-1))
         if pad_amount > 0:
             x = x[:,:, :-pad_amount]
-        # model_output_e, model_var_values = torch.split(x, 1, dim=1)  # 输出 模型输出和var
+        # model_output_e, model_var_values = torch.split(x, 1, dim=1)
 
         return x
 

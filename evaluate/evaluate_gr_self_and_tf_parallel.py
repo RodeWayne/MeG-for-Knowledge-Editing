@@ -7,15 +7,12 @@ from classifier_test import  test
 from itertools import chain
 import numpy as np
 def main(args):
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 当前时间格式化
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     start_time = time.time()
     device, edit_model, tokenizer, para_factory, zsre_datas_range, all_ids, xparas = initDeviceModelDataAndParadit(args)
-    num_reph = 2
-    # 生成参数
-    # 1.组成所有的句子
     if args.type == "paradit":
         phrases=[]
-        all_is_rel_kns = []  # 用于存储所有 batch 的 is_rel_kns
+        all_is_rel_kns = []  # store is_rel_kns for all batches
         for index, data in enumerate(zsre_datas_range):
             res_rephrase = {}
             if args.data_type == "cf":
@@ -25,9 +22,9 @@ def main(args):
             for index, rephrase in enumerate(rephrases):
                 if(index>0):continue
                 phrases.append([data["id"],rephrase])
-        # 2. 生成句子和对应的para
-        batch_size = args.batch_size  # 获取批量大小参数
-        num_batches = (len(phrases) + batch_size - 1) // batch_size  # 计算总批次数
+        # 2. Generate sentences and corresponding paras
+        batch_size = args.batch_size
+        num_batches = (len(phrases) + batch_size - 1) // batch_size
         all_phrase_para={}
         all_true_count = 0
         all_false_count = 0
@@ -35,26 +32,25 @@ def main(args):
             batch_data = phrases[batch_idx * batch_size:(batch_idx + 1) * batch_size]
             inputs = [SHORT_ANSWER_PROMPT[args.model_para_type].format(data[1]) for data in batch_data]
             querys=[data[1] for data in batch_data]
-            # 确定是否为有关知识
+            # Determine if the knowledge is relevant
             if args.is_rel:
                 is_rel_kns = test(args.bmodel_train_state_path, args.data_type, args.model_para_type, args.fi, querys,
                                   device)
             else:
-                is_rel_kns = torch.ones(len(querys), dtype=torch.bool).to(device)  # 全 True
-            true_count = sum(is_rel_kns)  # True 作为 1 计算
-            false_count = len(is_rel_kns) - true_count  # False 作为 0 计算
+                is_rel_kns = torch.ones(len(querys), dtype=torch.bool).to(device)
+            true_count = sum(is_rel_kns)
+            false_count = len(is_rel_kns) - true_count
             print(f"True: {true_count}, False: {false_count}")
             all_true_count += true_count
             all_false_count += false_count
             all_is_rel_kns.extend(is_rel_kns)
-            # 生成参数
-            # 生成参数
+            # Generate parameters
             with torch.no_grad():
                 paras = para_factory.generate_paral(is_rel_kns, inputs, args.gtype, srcmodel=edit_model,
                                                     srctokenizer=tokenizer,
                                                     layer=args.layer)
             for data,input,para in zip(batch_data,inputs, paras):
-                # 测试l2
+                # Test L2 norm
                 try:
                     index = all_ids.index(data[0])
                     x_orig = xparas[index]
@@ -62,13 +58,14 @@ def main(args):
                     l2_norms = torch.norm(x_orig - para, p=2, dim=0)
                 except ValueError:
                     index = -1
-                    l2_norms = torch.tensor([float("-1")])  # 转换为浮点数
+                    l2_norms = torch.tensor([float("-1")])
                 all_phrase_para[input] = [l2_norms, para]
 
-    # 迭代评估
     mid_time = time.time()
+    # prefix auto-regressive eval
     all_self_recursive = self_recursive(all_false_count, all_ids, all_is_rel_kns, all_phrase_para, all_true_count, args, current_time,
                          device, edit_model, input, mid_time, para, start_time, tokenizer, zsre_datas_range)
+    # teacher forcing eval
     all_teach_forcing = teach_forcing(all_false_count, all_ids, all_is_rel_kns, all_phrase_para, all_true_count, args,
                                         current_time,
                                         device, edit_model, input, mid_time, para, start_time, tokenizer,
@@ -98,11 +95,9 @@ def teach_forcing(all_false_count, all_ids, all_is_rel_kns, all_phrase_para, all
                 l2_norms = np.array([])
                 if args.type == "paradit":
                     para = all_phrase_para[input][1]
-                    # 测试l2
                     l2_norms = all_phrase_para[input][0]
-                    # 编辑模型
+                    # edit model
                     edit_model = get_edit_model(args.model_para_type, edit_model, para, args.layer)
-                # teach forcing测试
                 prob_prompts = [[input]]
                 inp_prompts_og = list(chain(*prob_prompts))
                 label = getLabel(args, data)
@@ -140,9 +135,8 @@ def teach_forcing(all_false_count, all_ids, all_is_rel_kns, all_phrase_para, all
                 existing_data = json.load(file)
         else:
             existing_data = []
-            # 添加新的detail
         existing_data.append(data)
-        # 写入更新后的数据
+        # insert updated record
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w') as file:
             json.dump(existing_data, file, indent=4)
@@ -160,7 +154,7 @@ def teach_forcing(all_false_count, all_ids, all_is_rel_kns, all_phrase_para, all
         elapsed_time_mid = format_elapsed_time(mid_time - start_time)
         all["mid_cost_time"] = elapsed_time_mid
         end_time = time.time()
-        elapsed_time = format_elapsed_time(end_time - start_time)  # 格式化耗时
+        elapsed_time = format_elapsed_time(end_time - start_time)
         all["end_cost_time"] = elapsed_time
         if args.type == "memit":
             file_path = os.path.join(f"{args.result_path}/result_tf", f'all_gr.json')
@@ -168,15 +162,8 @@ def teach_forcing(all_false_count, all_ids, all_is_rel_kns, all_phrase_para, all
             file_path = os.path.join(
                 f"{args.result_path}/result_tf_{args.layer}_fc2bias_{args.is_fc2bias}_nt{args.noisetype}",
                 f'all_gr.json')
-        # if os.path.exists(file_path):
-        #     with open(file_path, 'r') as file:
-        #         existing_data = json.load(file)
-        # else:
-        #     existing_data = []
         existing_data = []
-        # 添加新的detail
         existing_data.append(all)
-        # 写入更新后的数据
         with open(file_path, 'w') as file:
             json.dump(existing_data, file, indent=4)
     return all
@@ -190,12 +177,9 @@ def self_recursive(all_false_count, all_ids, all_is_rel_kns, all_phrase_para, al
         if args.data_type == "cf":
             rephrases = data['paraphrase_prompts']
         else:
-            rephrases = data['rephrase']  # 'paraphrase_prompts'
-        ## =========================self_recursive
-
+            rephrases = data['rephrase']
         for index, rephrase in enumerate(rephrases):
             if (index > 0): continue
-            # if(data["id"]!=6):continue
             l2_norms = np.array([])
             with torch.no_grad():
                 step = step + 1
@@ -203,11 +187,10 @@ def self_recursive(all_false_count, all_ids, all_is_rel_kns, all_phrase_para, al
                     input = rephrase
                 elif args.type == "paradit":
                     input = SHORT_ANSWER_PROMPT[args.model_para_type].format(rephrase)
-                # 生成参数
                 if args.type == "paradit":
                     para = all_phrase_para[input][1]
                     l2_norms = all_phrase_para[input][0]
-                    # 编辑模型
+                # edit model
                 edit_model = get_edit_model(args.model_para_type, edit_model, para, args.layer)
 
                 input = tokenizer(input, return_tensors="pt", return_attention_mask=False).to(device)
@@ -252,13 +235,10 @@ def self_recursive(all_false_count, all_ids, all_is_rel_kns, all_phrase_para, al
                 existing_data = json.load(file)
         else:
             existing_data = []
-            # 添加新的detail
         existing_data.append(data)
-        # 写入更新后的数据
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w') as file:
             json.dump(existing_data, file, indent=4)
-        # 每一步都统计结果并写入文件
         all = {}
         all["modeldir"] = args.model_state_dir
         if args.type == "paradit":
@@ -273,32 +253,19 @@ def self_recursive(all_false_count, all_ids, all_is_rel_kns, all_phrase_para, al
         elapsed_time_mid = format_elapsed_time(mid_time - start_time)
         all["mid_cost_time"] = elapsed_time_mid
         end_time = time.time()
-        elapsed_time = format_elapsed_time(end_time - start_time)  # 格式化耗时
+        elapsed_time = format_elapsed_time(end_time - start_time)
         all["end_cost_time"] = elapsed_time
         if args.type == "memit":
             file_path = os.path.join(f"{args.result_path}/result", f'all_gr.json')
         elif args.type == "paradit":
             file_path = os.path.join(
                 f"{args.result_path}/result_{args.layer}_fc2bias_{args.is_fc2bias}_nt{args.noisetype}", f'all_gr.json')
-        # if os.path.exists(file_path):
-        #     with open(file_path, 'r') as file:
-        #         existing_data = json.load(file)
-        # else:
-        #     existing_data = []
-        #     # 添加新的detail
         existing_data = []
         existing_data.append(all)
-        # 写入更新后的数据
         with open(file_path, 'w') as file:
             json.dump(existing_data, file, indent=4)
     return all
 
-
-"""
-paras_dir = '/home/wentao/xzw/data_paras/zsre_phi2_neuron_start_from_new/all'
-rephrases_dir = '/home/wentao/xzw/data_paras/zsre_phi2_neuron_start_from_new/train_success_data_phi2_all_new_rephrase.json'
-"""
-#
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpu", type=str, default='5')
@@ -321,8 +288,6 @@ if __name__ == '__main__':
     parser.add_argument("--bmodel_train_state_path", type=str, default="/home/wentao/xzw/model_checkpoints/model_epoch_3000.pth")
     parser.add_argument("--result_path", type=str, default="result/")
 
-    # 新的 12=10 1713=1024 3424=2048  6773=4096  13207=8192
-#
     args = parser.parse_args()
     main(args)
 

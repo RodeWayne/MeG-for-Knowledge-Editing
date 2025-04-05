@@ -8,15 +8,14 @@ from datetime import datetime
 from classifier_test import  test
 
 def main(args):
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 当前时间格式化
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  #
     start_time = time.time()
     device, edit_model, tokenizer, para_factory, zsre_datas_range,all_ids, xparas = initDeviceModelDataAndParadit(args)
-    # 生成参数
     if args.type == "paradit":
-        batch_size = args.batch_size  # 获取批量大小参数
-        num_batches = (len(zsre_datas_range) + batch_size - 1) // batch_size  # 计算总批次数
+        batch_size = args.batch_size
+        num_batches = (len(zsre_datas_range) + batch_size - 1) // batch_size
     all_id_para_l2={}
-    all_is_rel_kns = []  # 用于存储所有 batch 的 is_rel_kns
+    all_is_rel_kns = []  # store is_rel_kns for all batches
     all_true_count = 0
     all_false_count = 0
     for batch_idx in range(num_batches):
@@ -35,26 +34,23 @@ def main(args):
             else:
                 inputs = [SHORT_ANSWER_PROMPT[args.model_para_type].format(data["query"]) for data in batch_data]
                 querys = [data["query"] for data in batch_data]
-        # 确定是否为有关知识
+        # Determine if the knowledge is relevant
         if args.is_rel :
             is_rel_kns = test(args.bmodel_train_state_path, args.data_type, args.model_para_type, args.fi, querys,
                               device)
         else:
             is_rel_kns = torch.ones(len(querys), dtype=torch.bool).to(device)  # 全 True
-        # is_rel_kns[[0,1]] = False  # 修改前两个 True 为 False
-        true_count = sum(is_rel_kns)  # True 作为 1 计算
-        false_count = len(is_rel_kns) - true_count  # False 作为 0 计算
+        true_count = sum(is_rel_kns)
+        false_count = len(is_rel_kns) - true_count
         print(f"True: {true_count}, False: {false_count}")
         all_true_count += true_count
         all_false_count += false_count
-        # 累积 is_rel_kns
         all_is_rel_kns.extend(is_rel_kns)
-        # 生成参数
+        # generate model para
         with torch.no_grad():
             paras = para_factory.generate_paral(is_rel_kns,inputs, args.gtype, srcmodel=edit_model, srctokenizer=tokenizer,
                                             layer=args.layer)
         for data, para in zip(batch_data, paras):
-            # 测试l2
             try:
                 index = all_ids.index(data["id"])
                 x_orig = xparas[index]
@@ -68,7 +64,6 @@ def main(args):
 
     # ========================
     mid_time = time.time()
-    # 进行评测
     step = 0
     accuracys_tf=[]
 
@@ -86,12 +81,12 @@ def main(args):
                         input = SHORT_ANSWER_PROMPT[args.model_para_type].format(data["src"])
                     else:
                         input = SHORT_ANSWER_PROMPT[args.model_para_type].format(data["query"])
-            ## =========================self_recursive
+            # prefix auto-regressive eval
             all_self_recursive = self_recursive(all_ids, all_is_rel_kns, args, current_time, data, device, edit_model,
                                                 all_false_count,
                                                 index, input, mid_time, start_time, step, tokenizer,
                                                 all_true_count)
-
+            # teacher forcing eval
             all_teach_forcing = teach_forcing(all_ids, all_is_rel_kns, args, current_time, data, device, edit_model,
                                               all_false_count,
                                               index, input, mid_time, start_time, step, tokenizer, all_true_count,
@@ -101,7 +96,6 @@ def main(args):
     # ========================
 def teach_forcing(all_ids, all_is_rel_kns, args, current_time, data, device, edit_model, all_false_count, index, input,
                    mid_time, start_time, step, tokenizer, all_true_count,accuracys_tf):
-    # teach forcing测试
     prob_prompts = [[input]]
     inp_prompts_og = list(chain(*prob_prompts))
 
@@ -138,9 +132,8 @@ def teach_forcing(all_ids, all_is_rel_kns, args, current_time, data, device, edi
             existing_data = json.load(file)
     else:
         existing_data = []
-        # 添加新的detail
     existing_data.append(data)
-    # 写入更新后的数据
+    # insert updated record
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, 'w') as file:
         json.dump(existing_data, file, indent=4)
@@ -165,15 +158,8 @@ def teach_forcing(all_ids, all_is_rel_kns, args, current_time, data, device, edi
     elif args.type == "paradit":
         file_path = os.path.join(
             f"{args.result_path}/result_tf_{args.layer}_fc2bias_{args.is_fc2bias}_nt{args.noisetype}", f'all_sr.json')
-    # if os.path.exists(file_path):
-    #     with open(file_path, 'r') as file:
-    #         existing_data = json.load(file)
-    # else:
-    #     existing_data = []
-    #     # 添加新的detail
     existing_data = []
     existing_data.append(all)
-    # 写入更新后的数据
     with open(file_path, 'w') as file:
         json.dump(existing_data, file, indent=4)
     return all
@@ -204,7 +190,6 @@ def self_recursive(all_ids, all_is_rel_kns, args, current_time, data, device, ed
             data['generate'] = True
         else:
             data['generate'] = prediction
-    # 判断是否为ft的case
     data['isFTSuccess'] = data["id"] in all_ids
     data['is_rel_kn'] = all_is_rel_kns[index].item()
     if args.type == "memit":
@@ -220,13 +205,11 @@ def self_recursive(all_ids, all_is_rel_kns, args, current_time, data, device, ed
             existing_data = json.load(file)
     else:
         existing_data = []
-        # 添加新的detail
     existing_data.append(data)
-    # 写入更新后的数据
+    # insert updated record
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, 'w') as file:
         json.dump(existing_data, file, indent=4)
-    ## 每一步都写入统计
     rights = 0
     all = {}
     for i, d in enumerate(existing_data):
@@ -245,22 +228,15 @@ def self_recursive(all_ids, all_is_rel_kns, args, current_time, data, device, ed
     elapsed_time_mid = format_elapsed_time(mid_time - start_time)
     all["mid_cost_time"] = elapsed_time_mid
     end_time = time.time()
-    elapsed_time = format_elapsed_time(end_time - start_time)  # 格式化耗时
+    elapsed_time = format_elapsed_time(end_time - start_time)
     all["end_cost_time"] = elapsed_time
     if args.type == "memit":
         file_path = os.path.join(f"{args.result_path}/result", f'all_sr.json')
     elif args.type == "paradit":
         file_path = os.path.join(
             f"{args.result_path}/result_{args.layer}_fc2bias_{args.is_fc2bias}_nt{args.noisetype}", f'all_sr.json')
-    # if os.path.exists(file_path):
-    #     with open(file_path, 'r') as file:
-    #         existing_data = json.load(file)
-    # else:
-    #     existing_data = []
-    #     # 添加新的detail
     existing_data = []
     existing_data.append(all)
-    # 写入更新后的数据
     with open(file_path, 'w') as file:
         json.dump(existing_data, file, indent=4)
     return all
@@ -286,8 +262,6 @@ if __name__ == '__main__':
     parser.add_argument("--gtype", type=str, default='bert2para')
     parser.add_argument("--bmodel_train_state_path", type=str, default=None)
     parser.add_argument("--result_path", type=str, default="result/")
-    # 新的 1713=1024 3424=2048  6773=4096  13207=8192
-    # 29层after：1027=1024
 
     args = parser.parse_args()
     main(args)
