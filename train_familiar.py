@@ -26,9 +26,9 @@ class CustomDataset(Dataset):
         self.original_data = []
         # edit data dir
         if data_type == 'cf':
-            data_dir = 'data/cf_fake_id.json'
+            data_dir = 'data/train_familiar/cf_fake_id.json'
         else:
-            data_dir = 'data/zsre_{}_fake_id.json'.format(model_name)
+            data_dir = 'data/train_familiar/zsre_{}_fake_id.json'.format(model_name)
         # load data
         with open(data_dir, "r") as f:
             raw_data = json.load(f)
@@ -257,7 +257,7 @@ if __name__ == "__main__":
     parser.add_argument("--data_type", type=str, default="cf", choices=["zsre", "cf"], help="Data type")
     parser.add_argument("--epochs", type=int, default=1300, help="Number of training epochs")
     parser.add_argument("--data_size", type=int, default=1024, help="edit data size")
-    parser.add_argument("--batch_size", type=int, default=1024, help="Batch size, 1024 if data size is 1024, 2000 if data size if 10000")
+    parser.add_argument("--batch_size", type=int, default=1024, help="Batch size, 1024 if data size is 1024, 2000 if data size is 10000")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
     args = parser.parse_args()
 
