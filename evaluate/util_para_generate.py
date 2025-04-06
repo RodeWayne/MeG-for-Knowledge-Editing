@@ -170,7 +170,7 @@ class ParaFactory:
             )
             x_recov = samples * 0.01
         # assign all-zero tensor to non_rel_inputs
-        zero_tensor = torch.zeros(1, self.seq_len).to(self.device)
+        zero_tensor = torch.zeros( self.seq_len).to(self.device)
         for idx in [idx for idx, _ in indexed_inputs if not is_rel_kns[idx]]:
             results[idx] = zero_tensor
         # restore result order by original indices
