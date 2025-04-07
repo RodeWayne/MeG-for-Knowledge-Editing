@@ -14,6 +14,7 @@ import torch.nn.functional as F
 from tensorboardX import SummaryWriter
 import sys
 import argparse
+import yaml
 
 class CustomDataset(Dataset):
     def __init__(self, data_dir,model_para_type,data_type):
@@ -217,15 +218,19 @@ def val(gpu,datatype,raw_data,prompt_template,model,tokenizer,epoch,writer,check
     writer.add_scalar("MSE_loss/num_diff", num_diff, epoch)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train BERT model with configurable parameters")
-    parser.add_argument("--gpu", type=int, default=4, help="GPU index to use")
-    parser.add_argument("--model_para_type", type=str, default="gptj", help="Model parameter type (e.g., gptj)")
-    parser.add_argument("--data_type", type=str, default="cf", choices=["zsre", "cf"], help="Data type")
-    parser.add_argument("--temperature", type=float, default=1.0, help="Temperature for sampling")
-    parser.add_argument("--epochs", type=int, default=30000, help="Number of training epochs")
-    parser.add_argument("--batch_size", type=int, default=4000, help="Batch size")
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
+    parser = argparse.ArgumentParser(description="Train BERT model with YAML hyperparameters")
+    parser.add_argument("--hparams", type=str, default="hparams/stage_1/phi2_zsre.yaml", help="Path to YAML hyperparameters file")
     args = parser.parse_args()
+
+    # 加载 YAML 配置
+    with open(args.hparams, "r") as f:
+        hparams = yaml.safe_load(f)
+
+    # Explicitly convert the value types
+    hparams['temperature'] = float(hparams.get('temperature', 1.0))  # Default is 1.0 if not provided
+    hparams['epochs'] = int(hparams.get('epochs', 30000))  # Default is 30000 if not provided
+    hparams['batch_size'] = int(hparams.get('batch_size', 4000))  # Default is 4000 if not provided
+    hparams['lr'] = float(hparams.get('lr', 1e-4))  # Default is 1e-4 if not provided
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     tensorboard_logs = "tensorboard_logs"
@@ -235,11 +240,25 @@ if __name__ == "__main__":
     log_file_path = os.path.join(log_dir, "log.txt")
     sys.stdout = open(log_file_path, "w")
     sys.stderr = sys.stdout  # Redirect error log
-    if args.data_type=="zsre":
-        data_dir = "data/4000_rephrase.json"  # zsre
-    else:
-        data_dir = "data/multi_counterfact_new_id.json" # cf1
-    save_path = f"checkpoints_trained_bert/bert_{args.model_para_type}_{args.data_type}"
+
+    data_dir = {
+        "zsre": "data/4000_rephrase.json",
+        "cf": "data/multi_counterfact_new_id.json"
+    }.get(hparams["data_type"])
+    save_path = f"checkpoints_trained_bert/bert_{hparams['model_para_type']}_{hparams['data_type']}"
     pid=os.getpid()
-    print(f"gpu:{args.gpu}, model_para_type:{args.model_para_type}, data_type:{args.data_type}, temperature:{args.temperature}, save_path:{save_path}, pid:{pid}")
-    model = train_model(data_dir,save_path, args.gpu,args.model_para_type,args.data_type,args.temperature,writer, epochs=args.epochs, batch_size=args.batch_size, lr=args.lr)
+    print(f"gpu:{hparams['gpu']}, model_para_type:{hparams['model_para_type']}, data_type:{hparams['data_type']}, "
+          f"temperature:{hparams['temperature']}, save_path:{save_path}, pid:{pid}")
+
+    model = train_model(
+        data_dir,
+        save_path,
+        hparams["gpu"],
+        hparams["model_para_type"],
+        hparams["data_type"],
+        hparams["temperature"],
+        writer,
+        epochs=hparams["epochs"],
+        batch_size=hparams["batch_size"],
+        lr=hparams["lr"]
+    )

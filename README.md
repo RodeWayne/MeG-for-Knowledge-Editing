@@ -32,8 +32,11 @@ bash filter_data.sh
 ```
 
 Stage 1: Text Encoder Training:
+
+To prepare corresponding YAML configuration files in `/hparams/stage_1/` directory, and then run this command:
+
 ```cmd
-python train_bert.py --gpu 0 --model_para_type phi2 --data_type zsre --temperature 1 --epochs 30000 --batch_size 4000 --lr 1e-4
+python train_bert.py --hparams hparams/stage_1/<model_data>.yaml
 ```
 
 Stage 2: Familiarity Network Training:

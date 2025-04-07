@@ -1,0 +1,7 @@
+gpu: 0
+model_para_type: phi2
+data_type: cf
+temperature: 1.0
+epochs: 30000
+batch_size: 4000
+lr: 1e-4

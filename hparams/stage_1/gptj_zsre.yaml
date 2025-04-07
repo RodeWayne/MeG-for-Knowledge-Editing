@@ -1,0 +1,7 @@
+gpu: 0
+model_para_type: gptj
+data_type: zsre
+temperature: 1.0
+epochs: 30000
+batch_size: 4000
+lr: 1e-4
