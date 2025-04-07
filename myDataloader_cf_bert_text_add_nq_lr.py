@@ -98,7 +98,7 @@ class MyDataset(Dataset):
             else:
                 # For each case, take the first and last entry of the corresponding loc
                 a=-fileindex/2
-                zsre_datas_range_all = noise_data[-int((fileindex)/2 ):]
+                zsre_datas_range_all = noise_data[-int((fileindex*args.noise_n1024)/2 ):]
                 zsre_datas_range = []
                 for noise_loc_datas in zsre_datas_range_all:
                     zsre_datas_range.append(noise_loc_datas["neighborhood_prompts"][0])

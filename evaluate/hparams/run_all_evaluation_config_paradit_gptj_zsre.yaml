@@ -3,8 +3,8 @@ gpu: "4"
 model_path: "/home/wentao/xzw/LLM/gpt-j-6b" # gpt-j-6b phi-2  /home/wentao/xzw/LLM/phi-2
 model_state_dir: "/home/wentao/xzw/checkpoint/063_20250312235842/checkpoints/model_epoch_all_312000_sum0.4159_v1.pth"
 data_type: "zsre"
-data_range: 10000 # 1022 1005
-fi: 10000 # 1024
+data_range: 10 # 1022 1005
+fi: 10 # 1024
 layer: 9 # 29
 noisetype: 0
 ps: 100

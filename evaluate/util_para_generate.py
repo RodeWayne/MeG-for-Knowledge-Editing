@@ -170,7 +170,7 @@ class ParaFactory:
             )
             x_recov = samples * 0.01
         # assign all-zero tensor to non_rel_inputs
-        zero_tensor = torch.zeros( self.seq_len).to(self.device)
+        zero_tensor = torch.zeros(self.seq_len).to(self.device)
         for idx in [idx for idx, _ in indexed_inputs if not is_rel_kns[idx]]:
             results[idx] = zero_tensor
         # restore result order by original indices
@@ -340,7 +340,11 @@ def initDeviceModelDataAndParadit(args):
     # load data
     with open(args.data_dir, "r") as f:
         zsre_datas = json.load(f)
-    zsre_datas_range = zsre_datas[:args.data_range]
+    if hasattr(args, 'is_parallel') and args.is_parallel:
+        # need to distribute data to be parallel
+        zsre_datas_range = zsre_datas[args.start_index:args.end_index]
+    else:
+        zsre_datas_range = zsre_datas[:args.data_range]
     # load model
     if args.type == "memit":
         model = init_model_phi(args.model_path, device)

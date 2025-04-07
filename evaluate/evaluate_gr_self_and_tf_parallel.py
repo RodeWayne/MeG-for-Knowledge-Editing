@@ -71,7 +71,11 @@ def main(args):
                                         device, edit_model, input, mid_time, para, start_time, tokenizer,
                                         zsre_datas_range)
 
-    return all_self_recursive["accuracy"],all_teach_forcing["accuracy_mean"],all_teach_forcing["accuracy_std"]
+    # Modification for parallelism
+    if hasattr(args, 'is_parallel') and args.is_parallel:
+        return all_self_recursive["right"],all_self_recursive["step"], all_teach_forcing
+    else:
+        return all_self_recursive["accuracy"],all_teach_forcing["accuracy_mean"],all_teach_forcing["accuracy_std"]
 
 def teach_forcing(all_false_count, all_ids, all_is_rel_kns, all_phrase_para, all_true_count, args, current_time,
                    device, edit_model, input, mid_time, para, start_time, tokenizer, zsre_datas_range):
@@ -166,7 +170,11 @@ def teach_forcing(all_false_count, all_ids, all_is_rel_kns, all_phrase_para, all
         existing_data.append(all)
         with open(file_path, 'w') as file:
             json.dump(existing_data, file, indent=4)
-    return all
+    # Modification for parallelism
+    if hasattr(args, 'is_parallel') and args.is_parallel:
+        return accuracys
+    else:
+        return all
 
 def self_recursive(all_false_count, all_ids, all_is_rel_kns, all_phrase_para, all_true_count, args, current_time,
                    device, edit_model, input, mid_time, para, start_time, tokenizer, zsre_datas_range):

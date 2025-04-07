@@ -91,8 +91,11 @@ def main(args):
                                               all_false_count,
                                               index, input, mid_time, start_time, step, tokenizer, all_true_count,
                                               accuracys_tf)
-
-    return all_self_recursive["accuracy"],all_teach_forcing["accuracy_mean"],all_teach_forcing["accuracy_std"]
+    # Modification for parallelism
+    if hasattr(args, 'is_parallel') and args.is_parallel:
+        return all_self_recursive["right"],all_self_recursive["step"], accuracys_tf
+    else:
+        return all_self_recursive["accuracy"],all_teach_forcing["accuracy_mean"],all_teach_forcing["accuracy_std"]
     # ========================
 def teach_forcing(all_ids, all_is_rel_kns, args, current_time, data, device, edit_model, all_false_count, index, input,
                    mid_time, start_time, step, tokenizer, all_true_count,accuracys_tf):

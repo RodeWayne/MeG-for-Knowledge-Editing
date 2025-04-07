@@ -59,3 +59,10 @@ To prepare corresponding YAML configuration files in `/evaluate/hparams/` direct
 python evaluate/run_all_evaluation.py --model_para_type phi2 --data_type zsre
 ```
 
+To evaluate using N GPUs on one node, configure `Run_evaluation_parallel.sh`.
+The value for `TOTAL_DATA` will be passed to `config.fi` at runtime. Therefore, you do not need to manually set it when using parallel evaluation.
+Run this commmand to start the parallel evaluation:
+```eval
+./Run_evaluation_parallel.sh
+```
+A new `Output` folder will be created after running this command. This folder will store the complete running logs for each parallel process.
