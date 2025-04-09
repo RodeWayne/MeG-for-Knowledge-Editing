@@ -1,6 +1,4 @@
 import argparse
-import random
-import numpy as np
 from transformers import BertTokenizer, BertModel
 import json
 import torch
@@ -10,15 +8,7 @@ import os
 from tqdm import *
 from torch.utils.tensorboard import SummaryWriter
 import torch.nn.functional as F
-
-def set_seed(seed):
-    np.random.seed(seed)
-    random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+from util import *
 
 
 class CustomDataset(Dataset):
