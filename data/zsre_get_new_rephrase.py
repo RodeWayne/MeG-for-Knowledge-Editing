@@ -23,9 +23,9 @@ gen_kwargs = {"max_length": 2500, "do_sample": True, "top_k": 1}
 with open('./raw_data/get_rephrase.prompt') as f:
     prompt = f.read().strip()
 
-data_path = './final_use_data/temp/zsre_mend_eval_new.json'
+data_path = './new_split_data/zsre_mend_eval_new.json'
 
-output_path = './final_use_data/temp/zsre_mend_eval_new_rephrase.json'
+output_path = './new_split_data/zsre_mend_eval_new_rephrase.json'
 
 with open(data_path, "r") as f:
     data = json.load(f)
