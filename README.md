@@ -21,17 +21,22 @@ conda activate Meg
 
 To train the model(s) in the paper, run this command:
 
-Stage 0: Data Prepare:
+#### Stage 0: Data Prepare:
 
-download the data we final use to folder ```./data```
+download data to folder ```./data```
 
-if you want to know how we get our data for final use from raw data, please run:
+if you want to know how we get our splited data from raw data, please run:
 ```cmd
 cd data
-bash filter_data.sh
+bash split_data.sh
 ```
 
-Stage 1: Text Encoder Training:
+to get data for editing, run
+```cmd
+bash get_edit_and_loc.sh
+```
+
+#### Stage 1: Text Encoder Training:
 
 To prepare corresponding YAML configuration files in `/hparams/stage_1/` directory, and then run this command:
 
@@ -39,13 +44,17 @@ To prepare corresponding YAML configuration files in `/hparams/stage_1/` directo
 python train_bert.py --hparams hparams/stage_1/<model_data>.yaml
 ```
 
-Stage 2: Familiarity Network Training:
+#### Stage 2: Familiarity Network Training:
 ```cmd
 python train_familiar.py --gpu 0 --model_para_type phi2 --data_type zsre --data_size 1024 --epochs 1800 --batch_size 1024 --lr 0.001
 ```
 
+#### Stage 3: Neuron Weight Training:
+```cmd
+python train_neuron.py
+```
 
-Stage 4: Weight-Generation Model Training
+#### Stage 4: Weight-Generation Model Training
 ```cmd
 python train.py 
 ```
