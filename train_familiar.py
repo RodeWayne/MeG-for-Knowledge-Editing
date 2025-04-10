@@ -243,7 +243,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Train BERT model with configurable parameters")
     parser.add_argument("--gpu", type=int, default=0, help="GPU index to use")
-    parser.add_argument("--model_para_type", type=str, default="gptj", choices=["gptj", "phi2"], help="Model parameter type (e.g., gptj)")
+    parser.add_argument("--model_type", type=str, default="gptj", choices=["gptj", "phi2"], help="Model parameter type (e.g., gptj)")
     parser.add_argument("--data_type", type=str, default="cf", choices=["zsre", "cf"], help="Data type")
     parser.add_argument("--epochs", type=int, default=1300, help="Number of training epochs")
     parser.add_argument("--data_size", type=int, default=1024, help="edit data size")

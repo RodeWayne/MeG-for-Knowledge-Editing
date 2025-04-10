@@ -1,7 +1,6 @@
 import copy
 import os
 import random
-import re
 import numpy as np
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch

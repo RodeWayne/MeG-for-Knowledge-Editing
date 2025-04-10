@@ -33,7 +33,7 @@ bash split_data.sh
 
 to get data for editing, run
 ```cmd
-bash get_edit_and_loc.sh
+python get_edit_and_loc_data.py --model_type <model name> --data_type <dataset name>
 ```
 
 #### Stage 1: Text Encoder Training:
@@ -46,7 +46,10 @@ python train_bert.py --hparams hparams/stage_1/<model_data>.yaml
 
 #### Stage 2: Familiarity Network Training:
 ```cmd
-python train_familiar.py --gpu 0 --model_para_type phi2 --data_type zsre --data_size 1024 --epochs 1800 --batch_size 1024 --lr 0.001
+# add fake id to data for Familiarity Network Training
+python add_fake_id_for_familiar.py
+# training
+python train_familiar.py --model_type <model name> --data_type <dataset name> --data_size <edit size>
 ```
 
 #### Stage 3: Neuron Weight Training:
