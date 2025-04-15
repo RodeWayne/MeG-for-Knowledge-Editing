@@ -64,6 +64,7 @@ if __name__ == '__main__':
             loc_ans_dict = {}
             for loc_query in neighborhood_prompts:
                 loc_ans_dict[loc_query] = get_llm_response(model_name, model, tokenizer, loc_query)
+                break   # test only one loc query
             d['neighborhood_prompts'] = loc_ans_dict
 
             output_data.append(d)
@@ -72,9 +73,9 @@ if __name__ == '__main__':
             query = d['src']
             prediction = get_llm_response(model_name, model, tokenizer, query)
             # answer is wrong, need edit
+            target = d['answers'][0]
             if not target.lower() == prediction.lower():
                 d['pred'] = prediction
-                target = d['answers'][0]
                 d['id'] = num
                 # get loc ans 
                 loc_query = (d['loc'].split('nq question: ')[1] + '?').capitalize()

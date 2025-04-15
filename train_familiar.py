@@ -9,7 +9,7 @@ from tqdm import *
 from torch.utils.tensorboard import SummaryWriter
 import torch.nn.functional as F
 from util import *
-
+import yaml
 
 class CustomDataset(Dataset):
     def __init__(self, data_type,data_size,model_name):
@@ -121,7 +121,7 @@ def calculate_entropy(probs):
     return entropy
 
 
-def train_model(model_name,log_save_path,data_type,checkpoint_path,save_path,data_size, gpu, epochs, batch_size, lr):
+def train_model(model_name,log_save_path,data_type,checkpoint_path,save_path,data_size, gpu, epochs, batch_size, lr, entropy_threshold):
     layers_to_save = ['ffn1','ffn2','ffn3','ffn4','ffn5','classifier']
     train_writer = SummaryWriter(log_dir=log_save_path.format('train'))
     rephrase_writer = SummaryWriter(log_dir=log_save_path.format('rephrase'))
@@ -137,9 +137,6 @@ def train_model(model_name,log_save_path,data_type,checkpoint_path,save_path,dat
     model = BertClassifier(checkpoint_path,gpu).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
-
-    entropy_threshold_map = {'gptj_zsre': 0.3, 'gptj_cf': 0.7, 'phi2_zsre': 0.1, 'phi2_cf': 0.1}
-    entropy_threshold = entropy_threshold_map['{}_{}'.format(model_name,data_type)]
 
     # train
     pbar = tqdm(range(0,epochs), desc="training")
@@ -239,26 +236,47 @@ def train_model(model_name,log_save_path,data_type,checkpoint_path,save_path,dat
     print(f"Model saved at epoch {epoch + 1}")
     print("Training complete.")
 
+
+def get_config(model_name, data_type, edit_size):
+    yaml_data = './hparams/stage_2/config.yaml'
+    with open(yaml_data, "r") as f:
+        data = yaml.safe_load(f)
+    """获取指定模型、任务和edit_size的配置"""
+    task_data = data["models"][model_name][data_type]
+    for edit in task_data["edits"]:
+        if edit["edit_size"] == edit_size:
+            return {
+                "batch_size": edit["batch_size"],
+                "epoch": edit["epoch"],
+                "threshold": task_data["threshold"]
+            }
+    return None
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Train BERT model with configurable parameters")
     parser.add_argument("--gpu", type=int, default=0, help="GPU index to use")
-    parser.add_argument("--model_type", type=str, default="gptj", choices=["gptj", "phi2"], help="Model parameter type (e.g., gptj)")
-    parser.add_argument("--data_type", type=str, default="cf", choices=["zsre", "cf"], help="Data type")
-    parser.add_argument("--epochs", type=int, default=1300, help="Number of training epochs")
+    parser.add_argument("--model_type", type=str, default="phi2", choices=["gptj", "phi2"], help="Model parameter type (e.g., gptj)")
+    parser.add_argument("--data_type", type=str, default="zsre", choices=["zsre", "cf"], help="Data type")
     parser.add_argument("--data_size", type=int, default=1024, help="edit data size")
-    parser.add_argument("--batch_size", type=int, default=1024, help="Batch size, 1024 if data size is 1024, 2000 if data size is 10000")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
     args = parser.parse_args()
 
+    model_name = args.model_type
+    data_type = args.data_type
+    data_size = args.data_size
+
     # checkpoint path for Text Encoder
-    checkpoint_path = f"checkpoints_trained_bert/bert_{args.model_para_type}_{args.data_type}"
+    checkpoint_path = f"checkpoints_trained_bert/bert_{model_name}_{data_type}"
 
-    model_name = args.model_para_type
+    config = get_config(model_name, data_type, data_size)
 
-    root = 'familiar_network'
-    save_path = "familiar_network/checkpoints/"
-    log_save_path = 'familiar_network/train_log/{}'
+    print(config)
+
+    save_path = "./familiar_network/checkpoints/"
+    log_save_path = f"./familiar_network/train_log/{model_name}_{data_type}_{data_size}/"+'{}'
+    
     set_seed(42)
-    model = train_model(model_name,log_save_path,args.data_type,checkpoint_path,
-                        save_path,args.data_size, args.gpu, args.epochs, args.batch_size, args.lr)
+    model = train_model(model_name,log_save_path,data_type,checkpoint_path,save_path,
+                        data_size, args.gpu, config['epoch'], config['batch_size'], args.lr, config['threshold'])

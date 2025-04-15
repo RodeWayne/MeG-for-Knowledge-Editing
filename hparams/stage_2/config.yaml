@@ -1,0 +1,42 @@
+models:
+  # GPT-J
+  gptj:
+    zsre:
+      threshold: 0.3  # zsre
+      edits:
+        - edit_size: 1024
+          batch_size: 1024  
+          epoch: 1800
+        - edit_size: 10000
+          batch_size: 2000  
+          epoch: 4000
+    cf:
+      threshold: 0.7  # cf
+      edits:
+        - edit_size: 1024
+          batch_size: 1024
+          epoch: 1300
+        - edit_size: 10000
+          batch_size: 2000
+          epoch: 4000
+
+  # Phi-2
+  phi2:
+    zsre:
+      threshold: 0.1
+      edits:
+        - edit_size: 1024
+          batch_size: 1024
+          epoch: 1800
+        - edit_size: 10000
+          batch_size: 2000
+          epoch: 4000
+    cf:
+      threshold: 0.1
+      edits:
+        - edit_size: 1024
+          batch_size: 1024
+          epoch: 1200
+        - edit_size: 10000
+          batch_size: 2000
+          epoch: 4000
