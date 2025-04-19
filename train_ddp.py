@@ -35,7 +35,8 @@ import json
 import socket
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
-
+import yaml
+from types import SimpleNamespace
 def cleanup():
     """
     End DDP training.
@@ -63,6 +64,7 @@ def create_logger(logging_dir):
 #################################################################################
 
 def main(args):
+    print(args)
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
 
     # Setup DDP:
@@ -276,76 +278,53 @@ def save_checkpoint(checkpoint_dir, denoise, epoch, logger, opt,name=None):
 
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    ## Fixed config
-    parser.add_argument("--global-seed", type=int, default=0)
-    parser.add_argument("--num-workers", type=int, default=5)
-    parser.add_argument("--ps", type=int, default=100)
-    parser.add_argument("--nheads", type=int, default=12)
-    parser.add_argument("--nblocks", type=int, default=12)
-    parser.add_argument("--hidden", type=int, default=768)
-    parser.add_argument("--epochs", type=int, default=1000000)
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate for AdamW optimizer")
-    parser.add_argument("--noisepara_dir", type=str, default='/home/wentao/xzw/data_paras/my_noise_paras')
-    parser.add_argument("--is_bert_norm", action="store_true",default=True)
-    # Dynamic config
-    parser.add_argument("--bertft_dir", type=str, default='/home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth')
-    parser.add_argument("--paras_dir", type=str, default='/home/wentao/xzw/data_paras/zsre_phi2/all')
-    parser.add_argument("--rephrases_dir", type=str,default='/home/wentao/xzw/data_paras/zsre_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json')
-    parser.add_argument("--layer", type=int, default=29)
-    parser.add_argument("--seq_len", type=int, default=5121)  # 5121 8193
-    parser.add_argument("--isbert_0or1", type=int, default=1)
-    ## Noise config
-    parser.add_argument("--is_noise", action="store_true")
-    parser.add_argument("--noisetype", type=int, default=0)
-    parser.add_argument("--noise_n1024", type=float, default=0.2)
-    parser.add_argument("--noisetype_10or2", type=int, default=1)
-    ## Hyperparameter config
-    parser.add_argument("--model_para_type", type=str, default='gptj')
-    parser.add_argument("--data_type", type=str, default='zsre')
-    parser.add_argument("--gpus", type=str, default='3')
-    parser.add_argument("--global_batch_size", type=int, default=2392)
-    parser.add_argument("--fi", type=int, default=10000)
-
+    parser = argparse.ArgumentParser(description="Train DiT model with YAML hyperparameters")
+    parser.add_argument("--hparams", type=str, default="hparams/stage_4/phi2_zsre_10000.yaml",
+                        help="Path to YAML hyperparameters file")
     args = parser.parse_args()
-    path_config = {
-        "gptj": {
-            "zsre": {
-                "paras_dir": "/home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/all",
-                "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json",
-                "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
-                "layer": 9,
-                "seq_len": 8193,
-            },
-            "cf": {
-                "paras_dir": "/home/wentao/xzw/data_paras/cf_gptj/cf_layer_9/all",
-                "rephrases_dir": "/home/wentao/xzw/data_paras/cf_gptj/cf_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json",
-                "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_infoNCE/model_epoch_9600.pth",
-                "layer": 9,
-                "seq_len": 8193,
-            }
-        },
-        "phi2": {
-            "zsre": {
-                "paras_dir": "/home/wentao/xzw/data_paras/zsre_phi2/all",
-                "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json",
-                "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
-                "layer":29,
-                "seq_len":5121,
-            },
-            "cf": {
-                "paras_dir": "/home/wentao/xzw/data_paras/cf_phi2/all",
-                "rephrases_dir": "/home/wentao/xzw/data_paras/cf_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json",
-                "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_cf_checkpoints_infoNCE/model_epoch_5100.pth",
-                "layer": 29,
-                "seq_len": 5121,
-            }
-        }
-    }
-    args.paras_dir = path_config[args.model_para_type][args.data_type]["paras_dir"]
-    args.rephrases_dir = path_config[args.model_para_type][args.data_type]["rephrases_dir"]
-    args.bertft_dir = path_config[args.model_para_type][args.data_type]["bertft_dir"]
-    args.layer = path_config[args.model_para_type][args.data_type]["layer"]
-    args.seq_len = path_config[args.model_para_type][args.data_type]["seq_len"]
+
+    # loca YAML file
+    # hparams/stage_4/phi_zsre_1024.yaml
+    with open(args.hparams, "r") as f:
+        hparams_dict = yaml.safe_load(f)
+        args = SimpleNamespace(**hparams_dict)
+    # path_config = {
+    #     "gptj": {
+    #         "zsre": {
+    #             "paras_dir": "/home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/all",
+    #             "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json",
+    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
+    #             "layer": 9,
+    #             "seq_len": 8193,
+    #         },
+    #         "cf": {
+    #             "paras_dir": "/home/wentao/xzw/data_paras/cf_gptj/cf_layer_9/all",
+    #             "rephrases_dir": "/home/wentao/xzw/data_paras/cf_gptj/cf_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json",
+    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_infoNCE/model_epoch_9600.pth",
+    #             "layer": 9,
+    #             "seq_len": 8193,
+    #         }
+    #     },
+    #     "phi2": {
+    #         "zsre": {
+    #             "paras_dir": "/home/wentao/xzw/data_paras/zsre_phi2/all",
+    #             "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json",
+    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
+    #             "layer":29,
+    #             "seq_len":5121,
+    #         },
+    #         "cf": {
+    #             "paras_dir": "/home/wentao/xzw/data_paras/cf_phi2/all",
+    #             "rephrases_dir": "/home/wentao/xzw/data_paras/cf_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json",
+    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_cf_checkpoints_infoNCE/model_epoch_5100.pth",
+    #             "layer": 29,
+    #             "seq_len": 5121,
+    #         }
+    #     }
+    # }
+    # args.paras_dir = path_config[args.model_para_type][args.data_type]["paras_dir"]
+    # args.rephrases_dir = path_config[args.model_para_type][args.data_type]["rephrases_dir"]
+    # args.bertft_dir = path_config[args.model_para_type][args.data_type]["bertft_dir"]
+    # args.layer = path_config[args.model_para_type][args.data_type]["layer"]
+    # args.seq_len = path_config[args.model_para_type][args.data_type]["seq_len"]
     main(args)

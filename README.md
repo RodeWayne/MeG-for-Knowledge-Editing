@@ -46,12 +46,15 @@ python train_familiar.py --gpu 0 --model_para_type phi2 --data_type zsre --data_
 
 
 Stage 4: Weight-Generation Model Training
+
+To prepare corresponding YAML configuration files in `/hparams/stage_4/` directory, and then run this command:
+
 ```cmd
-python train.py 
+python train.py  --hparams hparams/stage_4/<model_data_size>.yaml
 ```
-or lauch training with N GPUs on one node:
+For datasets with more than 1024 samples, it is recommended to lauch training with N GPUs on one node:
 ```cmd
-torchrun --nnodes=1 --nproc_per_node=N train_ddp.py
+torchrun --nnodes=1 --nproc_per_node=N train_ddp.py --hparams hparams/stage_4/<model_data_size>.yaml
 ```
 
 ## Evaluation

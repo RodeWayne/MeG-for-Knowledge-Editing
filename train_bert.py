@@ -222,7 +222,7 @@ if __name__ == "__main__":
     parser.add_argument("--hparams", type=str, default="hparams/stage_1/phi2_zsre.yaml", help="Path to YAML hyperparameters file")
     args = parser.parse_args()
 
-    # 加载 YAML 配置
+    # loca YAML file
     with open(args.hparams, "r") as f:
         hparams = yaml.safe_load(f)
 

@@ -31,6 +31,8 @@ from myDataloader_cf_bert_text_add_nq_lr import MyDataset as MyDataset_cf
 from myDataloader_bert_text_add_nq_lr import MyDataset as MyDataset_zsre
 # from myDataloader_bert_text_add_nq_lr_sentrans import MyDataset
 import gc
+import yaml
+from types import SimpleNamespace
 
 import json
 import socket
@@ -164,14 +166,13 @@ def main(args):
         total_loss_mse = 0.0
         count = 0
         for x, y in loader:
-            # print(epoch,len(x))
+            print(epoch,len(x))
             x = x.to(device)  # 1*1*5121
             y = y.to(device)  # 1*2560
             x_src = x
             y_src = y
             x0 = x_src / 0.01
             y0 = y_src
-
             t = torch.randint(0, n_steps, (x0.shape[0],)).to(device)  # Pick random time step
             model_kwargs = dict(y=y0)
             loss_dict = diffusion.training_losses(denoise, x0, t, model_kwargs)
@@ -192,7 +193,7 @@ def main(args):
             logger.info(f"step:{epoch+1}; loss={avg_loss}; loss_vb:{avg_loss_vb}; loss_mse:{avg_loss_mse}; ")
         if (epoch + 1) % 10000 == 0:
             save_checkpoint(checkpoint_dir, denoise, epoch, logger, opt)
-        if (epoch+1) % 2 == 0:
+        if (epoch+1) % 1000 == 0:
             denoise.eval()
             with  torch.no_grad():
                 sums = []
@@ -242,94 +243,75 @@ def save_checkpoint(checkpoint_dir, denoise, epoch, logger, opt,name=None):
     logger.info(f"epoch:{epoch};save checkpoint at {save_filename}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    ## Fixed config
-    parser.add_argument("--ps", type=int, default=100)
-    parser.add_argument("--nheads", type=int, default=12)
-    parser.add_argument("--nblocks", type=int, default=24)
-    parser.add_argument("--hidden", type=int, default=768)
-    parser.add_argument("--epochs", type=int, default=1000000)
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate for AdamW optimizer")
-    parser.add_argument("--noisepara_dir", type=str, default='/home/wentao/xzw/data_paras/my_noise_paras')
-    parser.add_argument("--is_bert_norm", action="store_true",default=True)
-    # Dynamic config
-    parser.add_argument("--bertft_dir", type=str, default='/home/wentao/xzw/LLM/bert_gptj_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth')
-    parser.add_argument("--paras_dir", type=str, default='/home/wentao/xzw/data_paras/zsre_phi2/all')
-    parser.add_argument("--rephrases_dir", type=str, default='/home/wentao/xzw/data_paras/zsre_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json')
-    parser.add_argument("--layer", type=int, default=9)
-    parser.add_argument("--seq_len", type=int, default=8193)  # 5121 8193
-    parser.add_argument("--isbert_0or1", type=int, default=1)
-    ## Noise config
-    parser.add_argument("--is_noise", action="store_true")
-    parser.add_argument("--noisetype", type=int, default=0)
-    parser.add_argument("--noise_n1024", type=float, default=1)
-    parser.add_argument("--noisetype_10or2", type=int, default=1)
-    ## Hyperparameter config
-    parser.add_argument("--model_para_type", type=str, default='gptj')
-    parser.add_argument("--data_type", type=str, default='zsre')
-    parser.add_argument("--gpu", type=str, default='1')
-    parser.add_argument("--batch", type=int, default=128)
-    parser.add_argument("--fi", type=int, default=1024)
+    parser = argparse.ArgumentParser(description="Train DiT model with YAML hyperparameters")
+    parser.add_argument("--hparams", type=str, default="hparams/stage_4/phi2_zsre_1024.yaml",
+                        help="Path to YAML hyperparameters file")
     args = parser.parse_args()
 
-    path_config = {
-        "gptj": {
-            "zsre": {
-                "paras_dir": "/home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/all",
-                "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json",
-                "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
-                "layer":9,
-                "seq_len":8193,
-            },
-            "cf": {
-                "paras_dir": "/home/wentao/xzw/data_paras/cf_gptj/cf_layer_9/all",
-                "rephrases_dir": "/home/wentao/xzw/data_paras/cf_gptj/cf_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json",
-                # "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_infoNCE/model_epoch_9600.pth",
-                # "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_infoNCE_case2_T0.3/model_epoch_9600.pth",
-                # "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_infoNCE_case2_T0.5/model_epoch_9600.pth",
-                # "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_infoNCE_case2_T1/model_epoch_9600.pth",
-                "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_2000/model_epoch_20000.pth",
+    # loca YAML file
+    # hparams/stage_4/phi_zsre_1024.yaml
+    with open(args.hparams, "r") as f:
+        hparams_dict  = yaml.safe_load(f)
+        args = SimpleNamespace(**hparams_dict)
 
-                "layer":9,
-                "seq_len":8193,
-
-            }
-        },
-        "phi2": {
-            "zsre": {
-                "paras_dir": "/home/wentao/xzw/data_paras/zsre_phi2/all",
-                "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json",
-                "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
-                "layer":29,
-                "seq_len":5121,
-            },
-            # "zsre": {
-            #     "paras_dir": "/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_28/all",
-            #     "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_28/train_success_data_phi2_prompt_1_6_neuron_1_layer_28.json",
-            #     "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
-            #     "layer": 28,
-            #     "seq_len": 5121,
-            # },
-            # "zsre": {
-            #     "paras_dir": "/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_3/all",
-            #     "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_3/train_success_data_phi2_prompt_1_6_neuron_1_layer_3.json",
-            #     "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
-            #     "layer": 3,
-            #     "seq_len": 5121,
-            # },
-            "cf": {
-                "paras_dir": "/home/wentao/xzw/data_paras/cf_phi2/all",
-                "rephrases_dir": "/home/wentao/xzw/data_paras/cf_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json",
-                "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_cf_checkpoints_infoNCE/model_epoch_5100.pth",
-                "layer":29,
-                "seq_len":5121,
-
-            }
-        }
-    }
-    args.paras_dir=path_config[args.model_para_type][args.data_type]["paras_dir"]
-    args.rephrases_dir = path_config[args.model_para_type][args.data_type]["rephrases_dir"]
-    args.bertft_dir = path_config[args.model_para_type][args.data_type]["bertft_dir"]
-    args.layer=path_config[args.model_para_type][args.data_type]["layer"]
-    args.seq_len=path_config[args.model_para_type][args.data_type]["seq_len"]
+    # path_config = {
+    #     "gptj": {
+    #         "zsre": {
+    #             "paras_dir": "/home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/all",
+    #             "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json",
+    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
+    #             "layer":9,
+    #             "seq_len":8193,
+    #         },
+    #         "cf": {
+    #             "paras_dir": "/home/wentao/xzw/data_paras/cf_gptj/cf_layer_9/all",
+    #             "rephrases_dir": "/home/wentao/xzw/data_paras/cf_gptj/cf_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json",
+    #             # "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_infoNCE/model_epoch_9600.pth",
+    #             # "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_infoNCE_case2_T0.3/model_epoch_9600.pth",
+    #             # "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_infoNCE_case2_T0.5/model_epoch_9600.pth",
+    #             # "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_infoNCE_case2_T1/model_epoch_9600.pth",
+    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_2000/model_epoch_20000.pth",
+    #
+    #             "layer":9,
+    #             "seq_len":8193,
+    #
+    #         }
+    #     },
+    #     "phi2": {
+    #         "zsre": {
+    #             "paras_dir": "/home/wentao/xzw/data_paras/zsre_phi2/all",
+    #             "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json",
+    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
+    #             "layer":29,
+    #             "seq_len":5121,
+    #         },
+    #         # "zsre": {
+    #         #     "paras_dir": "/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_28/all",
+    #         #     "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_28/train_success_data_phi2_prompt_1_6_neuron_1_layer_28.json",
+    #         #     "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
+    #         #     "layer": 28,
+    #         #     "seq_len": 5121,
+    #         # },
+    #         # "zsre": {
+    #         #     "paras_dir": "/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_3/all",
+    #         #     "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_3/train_success_data_phi2_prompt_1_6_neuron_1_layer_3.json",
+    #         #     "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
+    #         #     "layer": 3,
+    #         #     "seq_len": 5121,
+    #         # },
+    #         "cf": {
+    #             "paras_dir": "/home/wentao/xzw/data_paras/cf_phi2/all",
+    #             "rephrases_dir": "/home/wentao/xzw/data_paras/cf_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json",
+    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_cf_checkpoints_infoNCE/model_epoch_5100.pth",
+    #             "layer":29,
+    #             "seq_len":5121,
+    #
+    #         }
+    #     }
+    # }
+    # args.paras_dir=path_config[args.model_para_type][args.data_type]["paras_dir"]
+    # args.rephrases_dir = path_config[args.model_para_type][args.data_type]["rephrases_dir"]
+    # args.bertft_dir = path_config[args.model_para_type][args.data_type]["bertft_dir"]
+    # args.layer=path_config[args.model_para_type][args.data_type]["layer"]
+    # args.seq_len=path_config[args.model_para_type][args.data_type]["seq_len"]
     main(args)

@@ -1,0 +1,31 @@
+# Fixed config
+ps: 100
+nheads: 12
+nblocks: 24
+hidden: 768
+epochs: 1000000
+lr: 0.0001
+noisepara_dir: /home/wentao/xzw/data_paras/my_noise_paras
+is_bert_norm: true
+
+# Dynamic config
+bertft_dir: /home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth
+paras_dir: /home/wentao/xzw/data_paras/zsre_phi2/all
+rephrases_dir: /home/wentao/xzw/data_paras/zsre_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json
+layer: 29
+seq_len: 5121
+isbert_0or1: 1
+
+# Noise config
+is_noise: true
+noisetype: 0
+noise_n1024: 1.0
+noisetype_10or2: 1
+
+# Hyperparameter config
+model_para_type: phi2
+data_type: zsre
+gpu: '1'
+batch: 512
+fi: 1024 # 1024 or 10000
+
