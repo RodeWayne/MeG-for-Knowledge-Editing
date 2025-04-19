@@ -58,6 +58,9 @@ python train_neuron.py
 ```
 
 #### Stage 4: Weight-Generation Model Training
+
+To prepare corresponding YAML configuration files in /hparams/stage_4/ directory, and then run this command:
+
 ```cmd
 python train.py  --hparams hparams/stage_4/<model_data_size>.yaml
 ```
