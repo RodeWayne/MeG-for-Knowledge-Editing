@@ -1,0 +1,42 @@
+models:
+  # GPT-J
+  gptj:
+    zsre:
+      layer: 9
+      neuron_num: 1
+      lr: 0.07
+      scheduler_T_max: 500
+      method: '3_6'
+      data_path: './data/edit_data/gptj_zsre_edit.json'
+      epochs: 500
+      min_loss_threshold: 0.35
+      patience_epochs: 10
+      patience: 0
+    cf:
+      layer: 9
+      neuron_num: 1
+      lr: 0.07
+      scheduler_T_max: 500
+      method: '3_6'
+      data_path: './data/edit_data/gptj_cf_edit.json'
+      epochs: 200
+      min_loss_threshold: 0.2
+      patience_epochs: 10
+      patience: 10
+
+  # Phi-2
+  phi2:
+    zsre:
+      layer: 29
+      neuron_num: 1
+      lr: 0.01
+      method: '1_6'
+      data_path: './data/edit_data/phi2_zsre_edit.json'
+      epochs: 80
+    cf:
+      layer: 29
+      neuron_num: 1
+      lr: 0.01
+      method: '1_6'
+      data_path: './data/edit_data/phi2_cf_edit.json'
+      epochs: 80

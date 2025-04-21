@@ -17,11 +17,11 @@ answer_prompt_dict = {1:'{}<|endoftext|>', 2:'{}.', 3:'{}</s>', 4:'</s>{}</s>', 
                         6:' {}.<|endoftext|>', 7:' {}<|endoftext|>', 8:' {}.\n<|endoftext|>'}
 
 def adjust_dots(s):
-    if s.endswith('..'):  # 如果结尾是两个句号
-        return s[:-1]  # 保留一个句号
-    elif s.endswith('.'):  # 如果结尾是一个句号
-        return s[:-1]  # 去掉句号
-    return s  # 其他情况保持不变
+    if s.endswith('..'):  # If the string ends with two dots
+        return s[:-1]  # Keep one dot
+    elif s.endswith('.'):  # If the string ends with one dot
+        return s[:-1]  # Remove the dot
+    return s  # Otherwise, return the string unchanged
 
 def add_neuron_for_phi2(model, neuron_num, layer):
     num = 10240
@@ -57,7 +57,7 @@ def add_neuron_for_gptj(model, neuron_num, layer):
     return model
 
 
-# 冻结phi2除最后第layer层的ffn层外的参数
+# Freeze all parameters in phi2 except the FFN (Feed-Forward Network) layers in the selected `layer` layers
 def set_grad_phi2(model, layer):
     for n, p in model.named_parameters():
         p.requires_grad = False
@@ -69,7 +69,7 @@ def set_grad_phi2(model, layer):
     return model
 
 
-# 冻结gptj除最后第layer层的ffn层外的参数
+# Freeze all parameters in gptj except the FFN (Feed-Forward Network) layers in the selected `layer` layers
 def set_grad_gptj(model, layer):
     for n, p in model.named_parameters():
         p.requires_grad = False
@@ -80,14 +80,13 @@ def set_grad_gptj(model, layer):
 
     return model
 
-# 获取第layer层的FFN层添加neuron_num个新神经元后的gpt-j模型，冻结新增神经元外的所有参数
+# modify a GPT-J model by adding new neurons to a specific layer's FFN and freeze all parameters except these new neurons
 def initial_gptj_model(neuron_num, layer):
-    # model, tokenizer = get_model("/home/wentao/CL_fusion/lqq/add_neuron/GPTJ6B")
-    model, tokenizer = get_model('/home/wentao/CL_fusion/lqq/gpt-j-6b')
+    model, tokenizer = get_model("EleutherAI/gpt-j-6B")
     model = add_neuron_for_gptj(model, neuron_num, layer)
     return model, tokenizer
 
-# 冻结gpt-j新增神经元外的所有参数
+# Freeze all parameters in GPT-J except the newly added neurons
 def freeze_gptj(model,layer):
     model = set_grad_gptj(model,layer)
     num = 16384
@@ -97,7 +96,7 @@ def freeze_gptj(model,layer):
     freeze_partial_weights_2(model.transformer.h[layer].mlp.fc_out.weight, num)
     return model
 
-# 将neuron_num个神经元的参数载入gpt-j模型第layer层的FFN层
+# load neuron_num new neurons into a specific FFN layer of a GPT-J model while keeping all other parameters frozen
 def set_neuron_gptj(fc1_weight, fc1_bias, fc2_weight, model, neuron_num, layer):
     with torch.no_grad():
         model.transformer.h[layer].mlp.fc_in.weight[-neuron_num:, :] = torch.tensor(fc1_weight, dtype=torch.float16)
@@ -105,7 +104,7 @@ def set_neuron_gptj(fc1_weight, fc1_bias, fc2_weight, model, neuron_num, layer):
         model.transformer.h[layer].mlp.fc_out.weight[:, -neuron_num:] = torch.tensor(fc2_weight, dtype=torch.float16)
     return model
 
-# 读取params文件，将文件中一个神经元的参数载入gpt-j模型
+# load neuron's parameters from a params file into a specific FFN layer of GPT-J
 def set_model_gptj(model, params, neuron_num, layer):
     fc1_add_weight = params['transformer.h.{}.mlp.fc_in.weight'.format(layer)]
     fc1_add_bias = params['transformer.h.{}.mlp.fc_in.bias'.format(layer)]
@@ -113,7 +112,7 @@ def set_model_gptj(model, params, neuron_num, layer):
     model = set_neuron_gptj(fc1_add_weight, fc1_add_bias, fc2_add_weight, model, neuron_num, layer)
     return model
 
-# 将neuron_num个神经元的参数载入phi-2模型第layer层的FFN层
+# load neuron_num new neurons into a specific FFN layer of a Phi-2 model while keeping all other parameters frozen
 def set_neuron_phi2(fc1_weight, fc1_bias, fc2_weight, model, neuron_num, layer):
     with torch.no_grad():
         model.model.layers[layer].mlp.fc1.weight[-neuron_num:, :] = torch.tensor(fc1_weight, dtype=torch.float16)
@@ -121,7 +120,7 @@ def set_neuron_phi2(fc1_weight, fc1_bias, fc2_weight, model, neuron_num, layer):
         model.model.layers[layer].mlp.fc2.weight[:, -neuron_num:] = torch.tensor(fc2_weight, dtype=torch.float16)
     return model
 
-# 读取params文件，将文件中一个神经元的参数载入phi-2模型
+# load neuron's parameters from a params file into a specific FFN layer of Phi-2
 def set_model_phi2(model, params, neuron_num, layer):
     fc1_add_weight = params['model.layers.{}.mlp.fc1.weight'.format(layer)]
     fc1_add_bias = params['model.layers.{}.mlp.fc1.bias'.format(layer)]
@@ -129,13 +128,13 @@ def set_model_phi2(model, params, neuron_num, layer):
     model = set_neuron_phi2(fc1_add_weight, fc1_add_bias, fc2_add_weight, model, neuron_num, layer)
     return model
 
-# 获取第layer层的FFN层添加n新神经元后的phi-2模型
+# modify a Phi-2 model by adding new neurons to a specific layer's FFN and freeze all parameters except these new neurons
 def initial_phi2_model(neuron_num, layer):
-    model, tokenizer = get_model("/home/wentao/CL_fusion/lqq/add_neuron/phi-2")
+    model, tokenizer = get_model("microsoft/phi-2")
     model = add_neuron_for_phi2(model, neuron_num, layer)
     return model, tokenizer
 
-# 冻结phi2新增神经元外的所有参数
+# Freeze all parameters in Phi-2 except the newly added neurons
 def freeze_phi2(model,layer):
     model = set_grad_phi2(model,layer)
     num = 10240
@@ -144,7 +143,7 @@ def freeze_phi2(model,layer):
     freeze_partial_weights_2(model.model.layers[layer].mlp.fc2.weight, num)
     return model
 
-# 通过模型路径获取原始模型
+# load the original model from a given model path
 def get_model(model_path):
     model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16, trust_remote_code=True)
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
@@ -153,7 +152,7 @@ def get_model(model_path):
 def get_subdirectories(path):
     return [d for d in os.listdir(path) if os.path.isdir(os.path.join(path, d))]
 
-# 固定随机数种子
+# fix random seeds
 def set_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
@@ -163,22 +162,22 @@ def set_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-# 定义一个函数来冻结权重张量的一部分
-# 冻结start_idx行到end_idx行
+# Define a function to freeze a portion of a weight tensor
+# Freeze rows from start_idx to end_idx
 def freeze_partial_weights_1(param, start_idx, end_idx):
     def hook(grad):
         grad[start_idx:end_idx] = 0
         return grad
     param.register_hook(hook)
     
-# 冻结0到n列
+# Freeze columns from start_idx to end_idx
 def freeze_partial_weights_2(param, n):
     def hook(grad):
         grad[:, :n] = 0
         return grad
     param.register_hook(hook)
 
-# 注册钩子以获取某一层的输入
+# register a hook to get the inputs to a specific layer
 def hook(module, input, output):
     global layer_input
     layer_input = input[0]

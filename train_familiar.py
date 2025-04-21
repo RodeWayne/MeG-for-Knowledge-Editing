@@ -241,7 +241,7 @@ def get_config(model_name, data_type, edit_size):
     yaml_data = './hparams/stage_2/config.yaml'
     with open(yaml_data, "r") as f:
         data = yaml.safe_load(f)
-    """获取指定模型、任务和edit_size的配置"""
+    """get config"""
     task_data = data["models"][model_name][data_type]
     for edit in task_data["edits"]:
         if edit["edit_size"] == edit_size:
@@ -255,7 +255,7 @@ def get_config(model_name, data_type, edit_size):
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="Train BERT model with configurable parameters")
+    parser = argparse.ArgumentParser(description="Train familiarity network with configurable parameters")
     parser.add_argument("--gpu", type=int, default=0, help="GPU index to use")
     parser.add_argument("--model_type", type=str, default="phi2", choices=["gptj", "phi2"], help="Model parameter type (e.g., gptj)")
     parser.add_argument("--data_type", type=str, default="zsre", choices=["zsre", "cf"], help="Data type")

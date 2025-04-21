@@ -45,7 +45,7 @@ python train_bert.py --hparams hparams/stage_1/<model_data>.yaml
 ```
 
 #### Stage 2: Familiarity Network Training:
-```cmd
+```python
 # add fake id to data for Familiarity Network Training
 python add_fake_id_for_familiar.py
 # training
@@ -54,7 +54,7 @@ python train_familiar.py --model_type <model name> --data_type <dataset name> --
 
 #### Stage 3: Neuron Weight Training:
 ```cmd
-python train_neuron.py
+python train_neuron.py --model_type <model name> --data_type <dataset name> --data_size <edit size>
 ```
 
 #### Stage 4: Weight-Generation Model Training
