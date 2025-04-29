@@ -144,7 +144,9 @@ def train_once(model, tokenizer, train_item, initial_layer_1_add_weight, initial
                         if label.lower() == prediction.lower():
                             success = True
                         break
-
+            else:
+                if epoch >= epochs:
+                    break
     if success:
         save_path = os.path.join(save_root_path, 'data_id_{}'.format(train_item["id"]))
         save_param(save_path, model)
