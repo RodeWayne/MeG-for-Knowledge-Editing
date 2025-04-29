@@ -66,7 +66,6 @@ def train_once(model, tokenizer, train_item, initial_layer_1_add_weight, initial
         patience_epochs = config['patience_epochs']
         min_loss_threshold = config['min_loss_threshold']
         patience = config['patience']  # the number of epochs where the loss is continuously less than the min_loss_threshold
-        scheduler = CosineAnnealingLR(optimizer, T_max=config['scheduler_T_max'], eta_min=0)
 
         with torch.no_grad():
             model.transformer.h[layer].mlp.fc_in.weight[-neuron_num:, :] = initial_layer_1_add_weight
@@ -82,7 +81,9 @@ def train_once(model, tokenizer, train_item, initial_layer_1_add_weight, initial
         query_prompt = query_prompt_dict[query_method].format(requested_rewrite['prompt'].format(requested_rewrite['subject']))
         answer_prompt = answer_prompt_dict[answer_method].format(requested_rewrite['target_new']['str'])
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=config['lr'], weight_decay=0)    # phi2 lr
+    optimizer = torch.optim.SGD(model.parameters(), lr=config['lr'], weight_decay=0)
+    if model_name == 'gptj':
+        scheduler = CosineAnnealingLR(optimizer, T_max=config['scheduler_T_max'], eta_min=0)
 
     single_input_ids = tokenizer.encode(query_prompt + answer_prompt, return_tensors='pt').to(device)
     set100 = len(tokenizer.encode(query_prompt))
