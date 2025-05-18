@@ -13,8 +13,7 @@ import os
 import argparse
 
 os.environ['TZ'] = 'Asia/Shanghai'
-time.tzset()  # Linux 和 macOS 上生效11
-
+time.tzset()
 def load_config(config_path):
     """
     Load configuration from a YAML file.

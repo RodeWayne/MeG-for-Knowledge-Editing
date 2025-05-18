@@ -29,6 +29,7 @@ class ModelMeanType(enum.Enum):
     PREVIOUS_X = enum.auto()  # the model predicts x_{t-1}
     START_X = enum.auto()  # the model predicts x_0
     EPSILON = enum.auto()  # the model predicts epsilon
+    VELOCITY = enum.auto() # the model predicts v
 
 
 class ModelVarType(enum.Enum):
@@ -290,7 +291,7 @@ class GaussianDiffusion:
             min_log = _extract_into_tensor(self.posterior_log_variance_clipped, t, x.shape)
             max_log = _extract_into_tensor(np.log(self.betas), t, x.shape)
             # The model_var_values is [-1, 1] for [min_var, max_var].
-            frac = (model_var_values.squeeze(1) + 1) / 2
+            frac = (model_var_values + 1) / 2
             model_log_variance = frac * max_log + (1 - frac) * min_log
             model_variance = th.exp(model_log_variance)
         else:
@@ -317,10 +318,18 @@ class GaussianDiffusion:
             return x
 
         if self.model_mean_type == ModelMeanType.START_X:
-            pred_xstart = process_xstart(model_output)
+            pred_xstart = process_xstart(model_output.squeeze(1))
+        # else:
+        #     pred_xstart = process_xstart(
+        #         self._predict_xstart_from_eps(x_t=x, t=t, eps=model_output.squeeze(1))
+        #     )
+        elif self.model_mean_type == ModelMeanType.EPSILON:
+            pred_xstart = process_xstart(
+                self._predict_xstart_from_eps(x_t=x, t=t, eps=model_output)
+            )
         else:
             pred_xstart = process_xstart(
-                self._predict_xstart_from_eps(x_t=x, t=t, eps=model_output.squeeze(1))
+                self._predict_xstart_from_v(x_t=x, t=t, v=model_output)
             )
         model_mean, _, _ = self.q_posterior_mean_variance(x_start=pred_xstart, x_t=x, t=t)
 
@@ -339,6 +348,11 @@ class GaussianDiffusion:
         return (
             _extract_into_tensor(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t
             - _extract_into_tensor(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * eps
+        )
+    def _predict_xstart_from_v(self, x_t, t, v):
+        return (
+            _extract_into_tensor(self.sqrt_alphas_cumprod, t, x_t.shape) * x_t
+            - _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_t.shape) * v
         )
 
     def _predict_eps_from_xstart(self, x_t, t, pred_xstart):
@@ -735,9 +749,13 @@ class GaussianDiffusion:
             model_kwargs = {}
         if noise is None:
             noise = th.randn_like(x_start)
-        x_t = self.q_sample(x_start, t, noise=noise) # 图像扩散
+        x_t = self.q_sample(x_start, t, noise=noise)
 
         terms = {}
+
+        alpha = _extract_into_tensor(self.sqrt_alphas_cumprod, t, t.shape)
+        sigma = _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, t.shape)
+        velocity = (alpha[:, None] * x_t - x_start) / sigma[:, None]
 
         if self.loss_type == LossType.KL or self.loss_type == LossType.RESCALED_KL:
             terms["loss"] = self._vb_terms_bpd(
@@ -751,38 +769,37 @@ class GaussianDiffusion:
             if self.loss_type == LossType.RESCALED_KL:
                 terms["loss"] *= self.num_timesteps
         elif self.loss_type == LossType.MSE or self.loss_type == LossType.RESCALED_MSE:
-            model_output = model(x_t, t, **model_kwargs) # 模型运行输出
+            model_output = model(x_t, t, **model_kwargs)
 
             if self.model_var_type in [
                 ModelVarType.LEARNED,
                 ModelVarType.LEARNED_RANGE,
             ]:
-                # B, C = x_t.shape[:2] # 批次大小和通道数
-                model_output, model_var_values = th.split(model_output, 1, dim=1) # 输出 模型输出和var
+                model_output, model_var_values = th.split(model_output, 1, dim=1)
                 # Learn the variance using the variational bound, but don't let
                 # it affect our mean prediction.
-                frozen_out = th.cat([model_output.detach(), model_var_values], dim=1) # 重新拼接用于计算loss
+                frozen_out = th.cat([model_output.detach(), model_var_values], dim=1)
                 terms["vb"] = self._vb_terms_bpd(
                     model=lambda *args, r=frozen_out: r,
                     x_start=x_start,
                     x_t=x_t,
                     t=t,
                     clip_denoised=False,
-                )["output"] # 变分边界误差
-                # if self.loss_type == LossType.RESCALED_MSE:
-                #     # Divide by 1000 for equivalence with initial implementation.
-                #     # Without a factor of 1/1000, the VB term hurts the MSE term.
-                #     terms["vb"] *= self.num_timesteps / 1000.0
+                )["output"]
+                if self.loss_type == LossType.RESCALED_MSE:
+                    # Divide by 1000 for equivalence with initial implementation.
+                    # Without a factor of 1/1000, the VB term hurts the MSE term.
+                    terms["vb"] *= self.num_timesteps / 1000.0
 
-            # target = {
-            #     ModelMeanType.PREVIOUS_X: self.q_posterior_mean_variance(
-            #         x_start=x_start, x_t=x_t, t=t
-            #     )[0],
-            #     ModelMeanType.START_X: x_start,
-            #     ModelMeanType.EPSILON: noise,
-            # }[self.model_mean_type]
-            # assert model_output.shape == target.shape == x_start.shape
-            terms["mse"] = mean_flat((noise - model_output.squeeze(1)) ** 2) # 后验概率减去输出
+            target = {
+                ModelMeanType.PREVIOUS_X: self.q_posterior_mean_variance(
+                    x_start=x_start, x_t=x_t, t=t
+                )[0],
+                ModelMeanType.START_X: x_start,
+                ModelMeanType.EPSILON: noise,
+                ModelMeanType.VELOCITY: velocity,
+            }[self.model_mean_type]
+            terms["mse"] = mean_flat((target - model_output.squeeze(1)) ** 2)
             if "vb" in terms:
                 terms["loss"] = terms["mse"] + terms["vb"]
             else:
@@ -790,14 +807,6 @@ class GaussianDiffusion:
         else:
             raise NotImplementedError(self.loss_type)
 
-        # def calculate_entropy(outputs):
-        #     # 计算输出的熵
-        #     probs = F.softmax(outputs, dim=-1)
-        #     entropy = -torch.sum(probs * torch.log(probs + 1e-10), dim=-1)  # 添加小常数防止log(0)
-        #     return entropy  # 返回均值熵
-        # loss_entropy = calculate_entropy(model_output)
-        # terms["loss_entropy"] = loss_entropy.squeeze(-1)
-        # terms["loss"]=terms["mse"] + terms["vb"]+terms["loss_entropy"]
         return terms
 
     def _prior_bpd(self, x_start):

@@ -30,6 +30,7 @@ from datetime import datetime
 from myDataloader_cf_bert_text_add_nq_lr import MyDataset as MyDataset_cf
 from myDataloader_bert_text_add_nq_lr import MyDataset as MyDataset_zsre
 # from myDataloader_phi2_hidden import MyDataset
+from accelerate import Accelerator
 
 import json
 import socket
@@ -67,26 +68,19 @@ def main(args):
     print(args)
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
 
-    # Setup DDP:
-    dist.init_process_group("nccl")
-    assert args.global_batch_size % dist.get_world_size() == 0, f"Batch size must be divisible by world size."
-    rank = dist.get_rank()
-    device = rank % torch.cuda.device_count()
-    seed = args.global_seed * dist.get_world_size() + rank
-    torch.manual_seed(seed)
-    torch.cuda.set_device(device)
-    print(f"Starting rank={rank}, seed={seed}, world_size={dist.get_world_size()}.")
+    # Setup accelerator:
+    accelerator = Accelerator()
+    device = accelerator.device.index
 
-    # 1. init result log
-    if rank == 0:
+    # 1. 准备日志
+    if accelerator.is_main_process:
         results_dir = "results"
         os.makedirs(results_dir, exist_ok=True)  # Make results folder (holds all experiment subfolders)
         now = datetime.now()
         time_format_1 = now.strftime("%Y%m%d%H%M%S")  # 年月日时分秒，例如：20240831123045
         experiment_index = len(glob(f"{results_dir}/*"))
         experiment_dir = f"{results_dir}/{experiment_index:03d}_{time_format_1}"  # Create an experiment folder
-        checkpoint_root_dir = f"/home/wentao/xzw/checkpoint/{experiment_index:03d}_{time_format_1}"  # Create an experiment folder
-        checkpoint_dir = f"{checkpoint_root_dir}/checkpoints"  # Stores saved model checkpoints
+        checkpoint_dir = f"{experiment_dir}/checkpoints"  # Stores saved model checkpoints
         os.makedirs(checkpoint_dir, exist_ok=True)
         os.makedirs(experiment_dir, exist_ok=True)
         logger = create_logger(experiment_dir)
@@ -100,9 +94,8 @@ def main(args):
     denoise = myDiT(seq_len=seq_len, patch_size=patchsize, hidden_size=args.hidden, num_heads=args.nheads,
                     num_blocks=args.nblocks).to(device)
     denoise = denoise.to(device)
-    denoise = DDP(denoise.to(device), device_ids=[rank],find_unused_parameters=True)
 
-    diffusion = create_diffusion(timestep_respacing="")  # default: 1000 steps, linear noise schedule
+    diffusion = create_diffusion(timestep_respacing="",predict_xstart=False,predict_v=True)  # default: 1000 steps, linear noise schedule
     opt = torch.optim.AdamW(denoise.parameters(), lr=args.lr, weight_decay=0)
 
     # load checkpoint
@@ -128,25 +121,17 @@ def main(args):
                                  noisetype=args.noisetype, model_para_type=args.model_para_type, layer=args.layer,
                                  fileindex=args.fi)
 
-    sampler = DistributedSampler(
-        dataset,
-        num_replicas=dist.get_world_size(),
-        rank=rank,
-        shuffle=True,
-        seed=args.global_seed
-    )
     print("batchsize:"+str(int(args.global_batch_size // dist.get_world_size())))
     loader = DataLoader(
         dataset,
-        batch_size=int(args.global_batch_size // dist.get_world_size()),
+        batch_size=int(args.global_batch_size // accelerator.num_processes),
         shuffle=False,
-        sampler=sampler,
         # num_workers=args.num_workers,
         # pin_memory=True,
         # drop_last=True
     )
     ###=================show setting
-    if rank == 0:
+    if accelerator.is_main_process:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         log_path = current_dir + "/" + experiment_dir + "/" + "log.txt"
         hostname = socket.gethostname()
@@ -157,15 +142,6 @@ def main(args):
         args_dict = vars(args)
         json_output = json.dumps(args_dict, indent=4)
         logger.info(f"training setting:\n{json_output}")
-        showName = f"{time_format_1}_ddp_dit_1_6_ddp_addnqlr_initp_seed_droup_berttextClsOut2para_ip{local_ip.split('.')[-1]}_case{len(dataset)}_ps{args.ps}_h{args.hidden}_nb{args.nblocks}_nh{args.nheads}_lr4"
-        server_info = {
-            "name": showName,
-            "hostname": local_ip,
-            "username": "wentao",
-            "password": "wentao@123",
-            "log_path": log_path
-        }
-        logger.info(f"show setting:\n{json.dumps(server_info, indent=4)}")
     ###=================
 
     # Variables for monitoring/logging purposes:
@@ -174,10 +150,9 @@ def main(args):
     log_steps = 0
     running_loss = 0
     # start_time = time()
-
+    denoise, opt, loader = accelerator.prepare(denoise, opt, loader)
     top3=[]
     for epoch in range(start_epoch,args.epochs):
-        sampler.set_epoch(epoch)
         denoise.train()
         epoch_loss = 0
         num_batches = 0
@@ -196,11 +171,9 @@ def main(args):
             loss = loss_dict["loss"].mean()
             loss_vb = loss_dict["vb"].mean()
             loss_mse = loss_dict["mse"].mean()
-            print(f"epoch:{epoch}, rank:{rank}, x_shape:{x.shape}, y_shape:{y.shape}, loss: {loss}")
-
-
+            print(f"epoch:{epoch}, rank:{accelerator.process_index}, x_shape:{x.shape}, y_shape:{y.shape}, loss: {loss}")
             opt.zero_grad()
-            loss.backward()
+            accelerator.backward(loss)
             opt.step()
             # Log loss values:
             running_loss += loss.item()
@@ -218,15 +191,16 @@ def main(args):
             log_steps = 0
         if (epoch + 1) % 10000 == 0:
             # save model checkpoint
-            if rank == 0:
-                save_checkpoint(checkpoint_dir, denoise, epoch, logger, opt)
-            dist.barrier()
+            if accelerator.is_main_process:
+                save_checkpoint(accelerator,checkpoint_dir, denoise, epoch, logger, opt)
+            if accelerator.num_processes > 1:
+                dist.barrier()
         if (epoch+1) % 1000 == 0:
-            if rank == 0:
+            if accelerator.is_main_process:
                 denoise.eval()
                 with  torch.no_grad():
                     sums=[]
-                    for _ in range(3):
+                    for _ in range(1):
                         x_gen = torch.randn( 1, seq_len).to(device)
                         x_gen = x_gen.repeat(x_src.shape[0], 1)
                         model_kwargs=dict(y=y_src)
@@ -249,7 +223,7 @@ def main(args):
 
                     if len(top3) < 3:
                         top3.append([sum,epoch])
-                        save_checkpoint(checkpoint_dir, denoise, epoch, logger, opt,str(sum))
+                        save_checkpoint(accelerator,checkpoint_dir, denoise, epoch, logger, opt,str(sum))
                     else:
                         max_index = max(enumerate(top3), key=lambda x: x[1][0])[0]
                         max_value = top3[max_index][0]
@@ -259,18 +233,18 @@ def main(args):
                             os.remove(old_checkpoint_path)
                             # Replace the maximum value
                             top3[max_index] = [sum, epoch]
-                            save_checkpoint(checkpoint_dir, denoise, epoch, logger, opt,str(sum))
-            torch.distributed.barrier()
-
+                            save_checkpoint(accelerator,checkpoint_dir, denoise, epoch, logger, opt,str(sum))
+            if accelerator.num_processes > 1:
+                dist.barrier()
     cleanup()
 
-def save_checkpoint(checkpoint_dir, denoise, epoch, logger, opt,name=None):
+def save_checkpoint(accelerator,checkpoint_dir, denoise, epoch, logger, opt,name=None):
     save_filename = os.path.join(checkpoint_dir, f'model_epoch_all_{epoch + 1}.pth')
     if name is not None:
         save_filename = os.path.join(checkpoint_dir, f'model_epoch_all_{epoch + 1}_sum{name}.pth')
     # torch.save(denoise.module.state_dict(), save_filename)
     torch.save({
-        "model_state_dict": denoise.module.state_dict(),
+        "model_state_dict": accelerator.unwrap_model(denoise).state_dict(),
         "optimizer_state_dict": opt.state_dict(),
         "epoch": epoch,
     }, save_filename)
@@ -288,43 +262,4 @@ if __name__ == "__main__":
     with open(args.hparams, "r") as f:
         hparams_dict = yaml.safe_load(f)
         args = SimpleNamespace(**hparams_dict)
-    # path_config = {
-    #     "gptj": {
-    #         "zsre": {
-    #             "paras_dir": "/home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/all",
-    #             "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json",
-    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
-    #             "layer": 9,
-    #             "seq_len": 8193,
-    #         },
-    #         "cf": {
-    #             "paras_dir": "/home/wentao/xzw/data_paras/cf_gptj/cf_layer_9/all",
-    #             "rephrases_dir": "/home/wentao/xzw/data_paras/cf_gptj/cf_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json",
-    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_infoNCE/model_epoch_9600.pth",
-    #             "layer": 9,
-    #             "seq_len": 8193,
-    #         }
-    #     },
-    #     "phi2": {
-    #         "zsre": {
-    #             "paras_dir": "/home/wentao/xzw/data_paras/zsre_phi2/all",
-    #             "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json",
-    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
-    #             "layer":29,
-    #             "seq_len":5121,
-    #         },
-    #         "cf": {
-    #             "paras_dir": "/home/wentao/xzw/data_paras/cf_phi2/all",
-    #             "rephrases_dir": "/home/wentao/xzw/data_paras/cf_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json",
-    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_cf_checkpoints_infoNCE/model_epoch_5100.pth",
-    #             "layer": 29,
-    #             "seq_len": 5121,
-    #         }
-    #     }
-    # }
-    # args.paras_dir = path_config[args.model_para_type][args.data_type]["paras_dir"]
-    # args.rephrases_dir = path_config[args.model_para_type][args.data_type]["rephrases_dir"]
-    # args.bertft_dir = path_config[args.model_para_type][args.data_type]["bertft_dir"]
-    # args.layer = path_config[args.model_para_type][args.data_type]["layer"]
-    # args.seq_len = path_config[args.model_para_type][args.data_type]["seq_len"]
     main(args)

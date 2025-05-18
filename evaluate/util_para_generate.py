@@ -30,7 +30,7 @@ class ParaFactory:
     def __init__(self,args,model_para_type,device,ps,hidden,nheads,nblocks,modelPth,bmodelTrainStatePath):
         # init bert
         self.device = device
-        cache_dir = '/home/wentao/xzw/LLM/bert-base-uncased'
+        cache_dir = 'bert-base-uncased'
         self.model_bert = BertModel.from_pretrained(cache_dir)
         self.tokenizer_bert = BertTokenizer.from_pretrained(cache_dir)
         self.args=args
@@ -60,7 +60,7 @@ class ParaFactory:
         gc.collect()
         torch.cuda.empty_cache()
         self.denoise.eval()  # important!
-        self.diffusion = create_diffusion(str(1000))
+        self.diffusion = create_diffusion(str(100),predict_v=True)
 
 
     def generate(self,input,gtype,srcmodel,srctokenizer,layer):
@@ -72,12 +72,7 @@ class ParaFactory:
             layer_input = layer_input[-1]
             layer_inputs.append(layer_input)
         if(gtype=="bert2para"):
-            encoded_bert_input = self.tokenizer_bert(input, return_tensors='pt')
-            max_length = self.tokenizer_bert.model_max_length
-            # check input length
-            input_length = encoded_bert_input['input_ids'].shape[1]
-            if input_length > max_length:
-                return None
+            encoded_bert_input = self.tokenizer_bert(input, return_tensors='pt',truncation=True,max_length=self.tokenizer_bert.model_max_length)
             output_bert = self.model_bert(**encoded_bert_input)
             outhidden = output_bert.last_hidden_state[:, 0, :]
             y0 = outhidden.to(self.device)
@@ -133,7 +128,7 @@ class ParaFactory:
                 outhidden = F.normalize(outhidden, p=2, dim=-1)  # norm
             y0 = outhidden.to(self.device)
             y0 = y0.float()
-            x_gen = torch.randn(len(rel_inputs), self.seq_len).to(self.device)
+            x_gen = torch.randn(len(rel_inputs),1, self.seq_len).to(self.device)
             model_kwargs = dict(y=y0)
             samples = self.diffusion.p_sample_loop(
                 self.denoise, x_gen.shape, x_gen, clip_denoised=False, model_kwargs=model_kwargs, progress=True,
@@ -170,7 +165,7 @@ class ParaFactory:
             )
             x_recov = samples * 0.01
         # assign all-zero tensor to non_rel_inputs
-        zero_tensor = torch.zeros(self.seq_len).to(self.device)
+        zero_tensor = torch.zeros(1,self.seq_len).to(self.device)
         for idx in [idx for idx, _ in indexed_inputs if not is_rel_kns[idx]]:
             results[idx] = zero_tensor
         # restore result order by original indices
@@ -217,7 +212,7 @@ def init_model_phi2(model_para_type,model_path,device,layer,is_fc2bias):
 
 def get_edit_model_memit(model,device,model_state_dir):
     params_dir = Path(model_state_dir)
-    params_state=torch.load(params_dir, map_location=torch.device("cuda:8"))
+    params_state=torch.load(params_dir, map_location=device)
     model.load_state_dict(params_state,strict=False)
     params_state = {k: v.cpu() for k, v in params_state.items()}
     del params_state
@@ -291,20 +286,6 @@ def getNoiseFileid(root_path,noisecase_num):
             if(len(xparas)==noisecase_num):break;
     return all_id,xparas
 
-def getNoiseFileidFromIDs(ids):
-    xparas=[]
-    all_id = []
-    root_dir = '/home/wentao/xzw/data_paras/my_noise_paras'
-    for file in os.listdir(root_dir):
-        id=int(file.split('.')[0].split('_')[-1])
-        if id in ids:
-            all_id.append(id)
-            file_path = os.path.join(root_dir, file)
-            with open(file_path, 'r') as f:
-                data = json.load(f)
-                para=torch.tensor(data["para"])
-                xparas.append(para)
-    return all_id,xparas
 
 def test_batch_prediction_acc(model, tok, prompts: typing.List[str], target,device):
     prompt_tok = tok(

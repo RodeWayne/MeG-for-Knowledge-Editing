@@ -21,6 +21,7 @@ is_noise: false
 noisetype: 0
 noise_n1024: 1.0
 noisetype_10or2: 1
+noisephrases_dir: /home/wentao/xzw/data_paras/method_1_6/filter_from_same_src.json
 
 # Hyperparameter config
 model_para_type: gptj

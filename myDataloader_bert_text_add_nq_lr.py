@@ -25,7 +25,7 @@ class MyDataset(Dataset):
         self.files=[]
         self.xparas=[]
 
-        cache_dir = '/home/wentao/xzw/LLM/bert-base-uncased'
+        cache_dir = 'bert-base-uncased'
         tokenizer = BertTokenizer.from_pretrained(cache_dir)
         model = BertModel.from_pretrained(cache_dir)
         model = model.to(f"cuda:{gpu}")
@@ -38,7 +38,7 @@ class MyDataset(Dataset):
 
         if is_noise:
             ## load noise para
-            noisephrases_dir='/home/wentao/xzw/data_paras/method_1_6/filter_from_same_src.json'
+            noisephrases_dir=args.noisephrases_dir
             with open(noisephrases_dir, "r") as f:
                 noise_data = json.load(f)
         SHORT_ANSWER_PROMPT = {'phi2': "Instruct:Answer the following question in less than 5 words. {}\nOutput:",

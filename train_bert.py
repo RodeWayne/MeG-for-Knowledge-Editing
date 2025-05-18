@@ -207,10 +207,6 @@ def val(gpu,datatype,raw_data,prompt_template,model,tokenizer,epoch,writer,check
     mean_loss_same = min_loss[same_position].mean().item() if num_same > 0 else 0
     mean_loss_diff = min_loss[diff_position].mean().item() if num_diff > 0 else 0
 
-    # Output results
-    print(f"模型: {checkpoint_path}")
-    print(f"相同索引数量: {num_same}, 均值 MSE loss: {mean_loss_same}")
-    print(f"不同索引数量: {num_diff}, 均值 MSE loss: {mean_loss_diff}")
     # log to TensorBoard
     writer.add_scalar("MSE_loss/mean_same", mean_loss_same, epoch)
     writer.add_scalar("MSE_loss/mean_diff", mean_loss_diff, epoch)
@@ -241,10 +237,7 @@ if __name__ == "__main__":
     sys.stdout = open(log_file_path, "w")
     sys.stderr = sys.stdout  # Redirect error log
 
-    data_dir = {
-        "zsre": "data/4000_rephrase.json",
-        "cf": "data/multi_counterfact_new_id.json"
-    }.get(hparams["data_type"])
+    data_dir= hparams["data_dir"]
     save_path = f"checkpoints_trained_bert/bert_{hparams['model_para_type']}_{hparams['data_type']}"
     pid=os.getpid()
     print(f"gpu:{hparams['gpu']}, model_para_type:{hparams['model_para_type']}, data_type:{hparams['data_type']}, "

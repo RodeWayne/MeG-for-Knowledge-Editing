@@ -66,7 +66,7 @@ python train.py  --hparams hparams/stage_4/<model_data_size>.yaml
 ```
 For datasets with more than 1024 samples, it is recommended to lauch training with N GPUs on one node:
 ```cmd
-torchrun --nnodes=1 --nproc_per_node=N train_ddp.py --hparams hparams/stage_4/<model_data_size>.yaml
+accelerate launch --multi_gpu --num_processes N --mixed_precision fp16  train_ddp.py --hparams hparams/stage_4/<model_data_size>.yaml
 ```
 
 ## Evaluation

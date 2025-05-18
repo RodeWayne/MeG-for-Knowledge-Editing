@@ -155,7 +155,6 @@ class myDiT(nn.Module):
             DiTBlock(hidden_size, num_heads, mlp_ratio) for _ in range(num_blocks)
         ])
         self.inLinear=nn.Linear(patch_size,hidden_size)
-        self.inLinear_y=nn.Linear(hidden_size,hidden_size)
 
         self.tEmbedder=TimestepEmbedder(hidden_size)
         self.final_layer = FinalLayer(hidden_size, 2)
@@ -207,9 +206,6 @@ class myDiT(nn.Module):
         x=x.reshape(x.shape[0],-1,self.patch_size)
         x=self.inLinear(x)
         x=x+self.pos_embed
-
-        # y=y.float()
-        # y=self.inLinear_y(y)
 
         c=self.tEmbedder(c) # 1000*384
         c=c+y               # 1*384 1000*384

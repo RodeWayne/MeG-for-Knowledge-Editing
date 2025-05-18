@@ -3,7 +3,6 @@
 
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
-
 """
 A minimal training script for DiT using PyTorch DDP.
 """
@@ -33,6 +32,7 @@ from myDataloader_bert_text_add_nq_lr import MyDataset as MyDataset_zsre
 import gc
 import yaml
 from types import SimpleNamespace
+from torch.amp import GradScaler, autocast
 
 import json
 import socket
@@ -82,8 +82,7 @@ def main(args):
     time_format_1 = now.strftime("%Y%m%d%H%M%S")  # 年月日时分秒，例如：20240831123045
     experiment_index = len(glob(f"{results_dir}/*"))
     experiment_dir = f"{results_dir}/{experiment_index:03d}_{time_format_1}"  # Create an experiment folder
-    checkpoint_root_dir = f"/home/wentao/xzw/checkpoint/{experiment_index:03d}_{time_format_1}"  # Create an experiment folder
-    checkpoint_dir = f"{checkpoint_root_dir}/checkpoints"  # Stores saved model checkpoints
+    checkpoint_dir = f"{experiment_dir}/checkpoints"  # Stores saved model checkpoints
     os.makedirs(checkpoint_dir, exist_ok=True)
     os.makedirs(experiment_dir, exist_ok=True)
     logger = create_logger(experiment_dir)
@@ -97,7 +96,7 @@ def main(args):
                     num_blocks=args.nblocks).to(device)
     denoise = denoise.to(device)
 
-    diffusion = create_diffusion(timestep_respacing="")  # default: 1000 steps, linear noise schedule
+    diffusion = create_diffusion(timestep_respacing="",predict_xstart=False,predict_v=True)  # default: 1000 steps, linear noise schedule
 
     opt = torch.optim.AdamW(denoise.parameters(), lr=args.lr, weight_decay=0)
     start_epoch = 0
@@ -137,28 +136,11 @@ def main(args):
     args_dict = vars(args)
     json_output = json.dumps(args_dict, indent=4)
     logger.info(f"training setting:\n{json_output}")
-
-    showName = f"{time_format_1}_dit_1_6_addnqlr_initp_seed_droup_berttextClsOut2para_l{args.layer}_ip{local_ip.split('.')[-1]}_case{len(dataset)}_ps{args.ps}_h{args.hidden}_nb{args.nblocks}_nh{args.nheads}_lr4"
-    server_info = {
-        "name": showName,
-        "hostname": local_ip,
-        "username": "wentao",
-        "password": "wentao@123",
-        "log_path": log_path
-    }
-    logger.info(f"show setting:\n{json.dumps(server_info, indent=4)}")
     ###=================
-
-
     # Variables for monitoring/logging purposes:
     n_steps = 1000  # number of denoising time steps
-    train_steps = 0
-    log_steps = 0
-    running_loss = 0
-    start_time = time()
-    batch_size = args.batch
-
     top3=[]
+    scaler = GradScaler()
     for epoch in range(start_epoch,args.epochs):
         denoise.train()
         total_loss = 0.0
@@ -175,13 +157,16 @@ def main(args):
             y0 = y_src
             t = torch.randint(0, n_steps, (x0.shape[0],)).to(device)  # Pick random time step
             model_kwargs = dict(y=y0)
-            loss_dict = diffusion.training_losses(denoise, x0, t, model_kwargs)
-            loss = loss_dict["loss"].mean()
-            loss_vb = loss_dict["vb"].mean()
-            loss_mse = loss_dict["mse"].mean()
+            # 混合精度训练
+            with autocast(device_type='cuda'):
+                loss_dict = diffusion.training_losses(denoise, x0, t, model_kwargs)
+                loss = loss_dict["loss"].mean()
+                loss_vb = loss_dict["vb"].mean()
+                loss_mse = loss_dict["mse"].mean()
             opt.zero_grad()
-            loss.backward()
-            opt.step()
+            scaler.scale(loss).backward()
+            scaler.step(opt)
+            scaler.update()
             total_loss += loss.item()
             total_loss_vb += loss_vb.item()
             total_loss_mse += loss_mse.item()
@@ -247,71 +232,9 @@ if __name__ == "__main__":
     parser.add_argument("--hparams", type=str, default="hparams/stage_4/phi2_zsre_1024.yaml",
                         help="Path to YAML hyperparameters file")
     args = parser.parse_args()
-
     # loca YAML file
     # hparams/stage_4/phi_zsre_1024.yaml
     with open(args.hparams, "r") as f:
         hparams_dict  = yaml.safe_load(f)
         args = SimpleNamespace(**hparams_dict)
-
-    # path_config = {
-    #     "gptj": {
-    #         "zsre": {
-    #             "paras_dir": "/home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/all",
-    #             "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json",
-    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
-    #             "layer":9,
-    #             "seq_len":8193,
-    #         },
-    #         "cf": {
-    #             "paras_dir": "/home/wentao/xzw/data_paras/cf_gptj/cf_layer_9/all",
-    #             "rephrases_dir": "/home/wentao/xzw/data_paras/cf_gptj/cf_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json",
-    #             # "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_infoNCE/model_epoch_9600.pth",
-    #             # "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_infoNCE_case2_T0.3/model_epoch_9600.pth",
-    #             # "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_infoNCE_case2_T0.5/model_epoch_9600.pth",
-    #             # "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_infoNCE_case2_T1/model_epoch_9600.pth",
-    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_gptj_cf_checkpoints_2000/model_epoch_20000.pth",
-    #
-    #             "layer":9,
-    #             "seq_len":8193,
-    #
-    #         }
-    #     },
-    #     "phi2": {
-    #         "zsre": {
-    #             "paras_dir": "/home/wentao/xzw/data_paras/zsre_phi2/all",
-    #             "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json",
-    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
-    #             "layer":29,
-    #             "seq_len":5121,
-    #         },
-    #         # "zsre": {
-    #         #     "paras_dir": "/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_28/all",
-    #         #     "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_28/train_success_data_phi2_prompt_1_6_neuron_1_layer_28.json",
-    #         #     "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
-    #         #     "layer": 28,
-    #         #     "seq_len": 5121,
-    #         # },
-    #         # "zsre": {
-    #         #     "paras_dir": "/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_3/all",
-    #         #     "rephrases_dir": "/home/wentao/xzw/data_paras/zsre_phi2_select/zsre_layer_3/train_success_data_phi2_prompt_1_6_neuron_1_layer_3.json",
-    #         #     "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth",
-    #         #     "layer": 3,
-    #         #     "seq_len": 5121,
-    #         # },
-    #         "cf": {
-    #             "paras_dir": "/home/wentao/xzw/data_paras/cf_phi2/all",
-    #             "rephrases_dir": "/home/wentao/xzw/data_paras/cf_phi2/train_success_data_phi2_prompt_1_6_neuron_1_layer_29.json",
-    #             "bertft_dir": "/home/wentao/xzw/LLM/bert_phi2_cf_checkpoints_infoNCE/model_epoch_5100.pth",
-    #             "layer":29,
-    #             "seq_len":5121,
-    #
-    #         }
-    #     }
-    # }
-    # args.paras_dir=path_config[args.model_para_type][args.data_type]["paras_dir"]
-    # args.rephrases_dir = path_config[args.model_para_type][args.data_type]["rephrases_dir"]
-    # args.bertft_dir = path_config[args.model_para_type][args.data_type]["bertft_dir"]
-    # args.layer=path_config[args.model_para_type][args.data_type]["layer"]
-    # args.seq_len=path_config[args.model_para_type][args.data_type]["seq_len"]
     main(args)

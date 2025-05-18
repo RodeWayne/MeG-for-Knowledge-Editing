@@ -1,7 +1,7 @@
 type: "paradit"
 gpu: "3"
-model_path: "/home/wentao/xzw/LLM/phi-2" # gpt-j-6b phi-2  /home/wentao/xzw/LLM/phi-2
-model_state_dir: "/home/wentao/xzw/checkpoint/064_20250312234352/checkpoints/model_epoch_all_120000.pth"
+model_path: "microsoft/phi-2"
+model_state_dir: "results/204_20250307074919/checkpoints/model_epoch_all_120000.pth"
 data_type: "zsre"
 data_range: 10 # 1022 1005
 fi: 10 # 1024
@@ -14,10 +14,10 @@ nheads: 12
 gtype: "bert2para" # hidden2para  bert2para
 batch_size: 1000
 temp: newzsre
-bmodel_train_state_path: "/home/wentao/xzw/LLM/bert_phi2_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth"
+bmodel_train_state_path: "checkpoints_trained_bert/bert_phi2_zsre/model_epoch_100.pth"
 result_path: "result_evaluation/"
 model_para_type: "phi2"
-para_dir: '/home/wentao/xzw/data_paras_v2/zsre_phi2/all'
-data_dir: "/home/wentao/xzw/data_paras_v2/loc/zsre_phi2_loc_repred_max_length_20.json"
+para_dir: 'data_paras/phi2_zsre_10000/paras'
+data_dir: 'data/edit_data/phi2_zsre_edit.json'
 is_normal: true
 is_rel: true

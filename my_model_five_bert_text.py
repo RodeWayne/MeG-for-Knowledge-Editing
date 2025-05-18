@@ -155,7 +155,6 @@ class myDiT(nn.Module):
             DiTBlock(hidden_size, num_heads, mlp_ratio) for _ in range(num_blocks)
         ])
         self.inLinear=nn.Linear(patch_size,hidden_size)
-        self.inLinear_y=nn.Linear(hidden_size,hidden_size)
 
         self.tEmbedder=TimestepEmbedder(hidden_size)
         self.final_layer = FinalLayer(hidden_size, 2)
@@ -208,9 +207,6 @@ class myDiT(nn.Module):
         x=self.inLinear(x)
         x=x+self.pos_embed
 
-        # y=y.float()
-        # y=self.inLinear_y(y)
-
         c=self.tEmbedder(c) # 1000*384
         c=c+y               # 1*384 1000*384
         c = self.dropout(c)
@@ -224,19 +220,7 @@ class myDiT(nn.Module):
         x = x.reshape(shape=(x.shape[0], 2,-1))
         if pad_amount > 0:
             x = x[:,:, :-pad_amount]
-        # model_output_e, model_var_values = torch.split(x, 1, dim=1)
 
         return x
 
 
-
-
-#
-# device=torch.device('cuda:5')
-# noise = torch.randn(500,1,10).to(device)
-# t = torch.randint(0, 1000, (500,)).to(device)  # Pick random time step
-#
-#
-# model=myDiT(seq_len=10, hidden_size=384, num_heads=8,num_blocks=4).to(device)
-# resp=model(noise,t)
-# print(resp.shape)

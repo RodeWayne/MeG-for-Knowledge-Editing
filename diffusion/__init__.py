@@ -15,9 +15,9 @@ def create_diffusion(
     predict_xstart=False,
     learn_sigma=True,
     rescale_learned_sigmas=False,
-    diffusion_steps=1000
+    diffusion_steps=1000,
+    predict_v=False
 ):
-    print("/home/wentao/xzw/dit_github_repo/analyse_sample/codes/code_src_dit_newprompt/validate_sr_gr_lr/diffusion/__init__.py")
     betas = gd.get_named_beta_schedule(noise_schedule, diffusion_steps)
     if use_kl:
         loss_type = gd.LossType.RESCALED_KL
@@ -27,12 +27,15 @@ def create_diffusion(
         loss_type = gd.LossType.MSE
     if timestep_respacing is None or timestep_respacing == "":
         timestep_respacing = [diffusion_steps]
+    mean_type = gd.ModelMeanType.EPSILON
+    if predict_xstart:
+        mean_type = gd.ModelMeanType.START_X
+    elif predict_v:
+        mean_type = gd.ModelMeanType.VELOCITY
     return SpacedDiffusion(
         use_timesteps=space_timesteps(diffusion_steps, timestep_respacing),
         betas=betas,
-        model_mean_type=(
-            gd.ModelMeanType.EPSILON if not predict_xstart else gd.ModelMeanType.START_X
-        ),
+        model_mean_type=mean_type,
         model_var_type=(
             (
                 gd.ModelVarType.FIXED_LARGE
@@ -43,5 +46,4 @@ def create_diffusion(
             else gd.ModelVarType.LEARNED_RANGE
         ),
         loss_type=loss_type
-        # rescale_timesteps=rescale_timesteps,
     )

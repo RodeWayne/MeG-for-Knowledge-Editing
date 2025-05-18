@@ -26,7 +26,7 @@ class MyDataset(Dataset):
         self.files=[]
         self.xparas=[]
 
-        cache_dir = '/home/wentao/xzw/LLM/bert-base-uncased'
+        cache_dir = 'bert-base-uncased'
         tokenizer = BertTokenizer.from_pretrained(cache_dir)
         model = BertModel.from_pretrained(cache_dir)
         model = model.to(f"cuda:{gpu}")
@@ -39,7 +39,7 @@ class MyDataset(Dataset):
         data_by_id = {item['id']: item['query'] for item in edit_data}
 
         ## load noise para
-        noisephrases_dir="/home/wentao/xzw/data_paras/cf_phi2_epoch_80/multi_counterfact_new_id.json"
+        noisephrases_dir=args.noisephrases_dir
         with open(noisephrases_dir, "r") as f:
             noise_data = json.load(f)
 
@@ -52,9 +52,6 @@ class MyDataset(Dataset):
                     if file.endswith('.json'):
                         file_path = os.path.join(subdir_path, file)
                         if file=="params_0.json" and int(subdir_path.split("_")[-1])<fileindex:
-                            # print(file_path)
-                            # a+=1
-                            # print(a)
                             self.files.append(file_path)
                             with open(file_path, 'r') as f:
                                 data = json.load(f)
@@ -69,11 +66,9 @@ class MyDataset(Dataset):
                             x = torch.cat([fc1_weight.flatten(), fc1_bias.flatten(), fc2_weight.flatten()])
                             self.xparas.append(x)
                             learning_prompt = SHORT_ANSWER_PROMPT[model_para_type].format(data_by_id[int(subdir_path.split('_')[-1])])
-                            # learning_prompt = data_by_id[int(subdir_path.split('_')[-1])]
-
                             encoded_input = tokenizer(learning_prompt, return_tensors='pt')
                             outhidden=""
-                            with torch.no_grad():  # 不计算梯度
+                            with torch.no_grad():
                                 encoded_input=encoded_input.to(f"cuda:{gpu}")
                                 output = model(**encoded_input)
                             # 1. Method 1: Get pooler output
@@ -82,7 +77,7 @@ class MyDataset(Dataset):
                             outhidden = output.last_hidden_state[:, 0, :]
                             outhidden=outhidden.squeeze(0)
                             if args.is_bert_norm:
-                                outhidden = F.normalize(outhidden, p=2, dim=-1)  # L2 归一化
+                                outhidden = F.normalize(outhidden, p=2, dim=-1)
                             self.samples.append([x,outhidden])
                             print(len(self.xparas))
         print(len(self.xparas))
@@ -130,7 +125,7 @@ class MyDataset(Dataset):
                 outhidden = output.last_hidden_state[:, 0, :]
                 outhidden = outhidden.squeeze(0)
                 if args.is_bert_norm:
-                    outhidden = F.normalize(outhidden, p=2, dim=-1)  # L2 归一化
+                    outhidden = F.normalize(outhidden, p=2, dim=-1)
                 self.samples.append([noise, outhidden])
         del model,tokenizer
 
