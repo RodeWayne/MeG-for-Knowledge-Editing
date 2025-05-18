@@ -82,7 +82,7 @@ def info_nce_loss(query, positive_key, negative_keys, temperature=0.1):
 
 def train_model(data_dir,save_path, gpu, model_para_type,data_type,temperature, writer, epochs=10, batch_size=16, lr=1e-4):
     # load tokenizer,model
-    cache_dir = '/home/wentao/xzw/LLM/bert-base-uncased'
+    cache_dir = 'bert-base-uncased'
     tokenizer = BertTokenizer.from_pretrained(cache_dir)
     model = BertModel.from_pretrained(cache_dir)
     model = model.to(f"cuda:{gpu}")
@@ -129,7 +129,7 @@ def train_model(data_dir,save_path, gpu, model_para_type,data_type,temperature, 
             f"[{current_time}] Epoch {epoch + 1}/{epochs}, Loss: {mean_loss:.4f}, Elapsed Time: {days} days {hours} hours {minutes} minutes {seconds} seconds",
             flush=True)
         writer.add_scalar("loss",mean_loss, epoch)
-        if (epoch + 1) % 100 == 0:
+        if (epoch + 1) % 5 == 0:
             os.makedirs(save_path, exist_ok=True)
             checkpoint_path=os.path.join(save_path, f"model_epoch_{epoch + 1}.pth")
             torch.save({

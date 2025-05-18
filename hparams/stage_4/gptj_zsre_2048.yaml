@@ -2,7 +2,7 @@
 global_seed: 0
 ps: 100
 nheads: 12
-nblocks: 24
+nblocks: 12
 hidden: 768
 epochs: 1000000
 lr: 0.0001
@@ -21,7 +21,7 @@ is_noise: false
 noisetype: 0
 noise_n1024: 1.0
 noisetype_10or2: 1
-noisephrases_dir: /home/wentao/xzw/data_paras/method_1_6/filter_from_same_src.json
+noisephrases_dir: data/new_split_data/zsre_for_bert_train.json
 
 # Hyperparameter config
 model_para_type: gptj

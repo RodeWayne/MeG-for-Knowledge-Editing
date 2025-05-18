@@ -1,7 +1,6 @@
 import evaluate_lr_zsre_self_and_tf_parallel
 import evaluate_gr_self_and_tf_parallel
 import evaluate_sr_self_and_tf_parallel
-from getFilePath import *
 # import test2
 import yaml
 from argparse import Namespace

@@ -71,23 +71,21 @@ def calculate_entropy(probs):
 basedir = 'familiar_network/checkpoints/'
 
 checkpoint_path_map = {
-    'phi2_zsre_5': os.path.join(basedir, 'phi2_zsre_1024.pth'),
-    'phi2_zsre_10': os.path.join(basedir, 'phi2_zsre_1024.pth'),
-    'phi2_zsre_100': os.path.join(basedir, 'phi2_zsre_10000.pth'),
     'phi2_zsre_1024': os.path.join(basedir, 'phi2_zsre_1024.pth'),
+    'phi2_zsre_2048': os.path.join(basedir, 'phi2_zsre_2048.pth'),
+    'phi2_zsre_4096': os.path.join(basedir, 'phi2_zsre_4096.pth'),
     'phi2_zsre_10000': os.path.join(basedir, 'phi2_zsre_10000.pth'),
-    'phi2_cf_10': os.path.join(basedir, 'phi2_cf_10000.pth'),
-    'phi2_cf_100': os.path.join(basedir, 'phi2_cf_10000.pth'),
     'phi2_cf_1024': os.path.join(basedir, 'phi2_cf_1024.pth'),
+    'phi2_cf_2048': os.path.join(basedir, 'phi2_cf_2048.pth'),
+    'phi2_cf_4096': os.path.join(basedir, 'phi2_cf_4096.pth'),
     'phi2_cf_10000': os.path.join(basedir, 'phi2_cf_10000.pth'),
-    'gptj_zsre_10': os.path.join(basedir, 'gptj_zsre_10000.pth'),
-    'gptj_zsre_100': os.path.join(basedir, 'gptj_zsre_10000.pth'),
     'gptj_zsre_1024': os.path.join(basedir, 'gptj_zsre_1024.pth'),
+    'gptj_zsre_2048': os.path.join(basedir, 'gptj_zsre_2048.pth'),
+    'gptj_zsre_4096': os.path.join(basedir, 'gptj_zsre_4096.pth'),
     'gptj_zsre_10000': os.path.join(basedir, 'gptj_zsre_10000.pth'),
-    'gptj_cf_5': os.path.join(basedir, 'gptj_cf_1024.pth'),
-    'gptj_cf_10': os.path.join(basedir, 'gptj_cf_1024.pth'),
     'gptj_cf_1024': os.path.join(basedir, 'gptj_cf_1024.pth'),
-    'gptj_cf_100': os.path.join(basedir, 'gptj_cf_10000.pth'),
+    'gptj_cf_2048': os.path.join(basedir, 'gptj_cf_2048.pth'),
+    'gptj_cf_4096': os.path.join(basedir, 'gptj_cf_4096.pth'),
     'gptj_cf_10000': os.path.join(basedir, 'gptj_cf_10000.pth')
 
 }

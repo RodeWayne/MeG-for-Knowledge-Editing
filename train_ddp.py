@@ -100,7 +100,7 @@ def main(args):
 
     # load checkpoint
     start_epoch = 0
-    # save_filename="/home/wentao/xzw/checkpoint/temp/186_026_20250205001625/checkpoints/model_epoch_all_30000.pth"
+    # save_filename="results/204_20250307074919/checkpoints/model_epoch_all_10000.pth"
     #
     # checkpoint = torch.load(save_filename, map_location=torch.device("cuda", rank))
     # denoise.module.load_state_dict(checkpoint["model_state_dict"])

@@ -245,27 +245,3 @@ def self_recursive(all_ids, all_is_rel_kns, args, current_time, data, device, ed
     return all
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--gpu", type=str, default='6')
-    parser.add_argument("--model_state_dir", type=str,
-                        default="/home/wentao/xzw/checkpoint/temp/model_epoch_all_30000.pth")
-    parser.add_argument("--data_dir", type=str,
-                        default="/home/wentao/xzw/phi2_29_after_fc2_bias_orig_init_paras/train_success_data_phi2_prompt_1_1_neuron_1_layer_29.json")
-    parser.add_argument("--para_dir", type=str,
-                        default="/home/wentao/xzw/phi2_29_after_fc2_bias_orig_init_paras/phi2_prompt_1_1_neuron_1_layer_29")
-    parser.add_argument("--data_range", type=int, default=1024)
-    parser.add_argument("--fi", type=int, default=1027)
-    parser.add_argument("--layer", type=int, default=29)
-    parser.add_argument("--ps", type=int, default=100)
-    parser.add_argument("--is_fc2bias", action="store_true")
-    parser.add_argument("--noisetype", type=int, default=1)
-    parser.add_argument("--hidden", type=int, default=768)
-    parser.add_argument("--nheads", type=int, default=12)
-    parser.add_argument("--gtype", type=str, default='bert2para')
-    parser.add_argument("--bmodel_train_state_path", type=str, default=None)
-    parser.add_argument("--result_path", type=str, default="result/")
-
-    args = parser.parse_args()
-    main(args)
-

@@ -103,7 +103,7 @@ def main(args):
 
     # # load checkpoint
     # start_epoch = 0
-    # save_filename = "/home/wentao/xzw/checkpoint/021_20250123012939/checkpoints/model_epoch_all_10000.pth"
+    # save_filename = "results/204_20250307074919/checkpoints/model_epoch_all_10000.pth"
     # if os.path.exists(save_filename):
     #     checkpoint = torch.load(save_filename, map_location=device)
     #     denoise.load_state_dict(checkpoint["model_state_dict"])
@@ -182,7 +182,7 @@ def main(args):
             denoise.eval()
             with  torch.no_grad():
                 sums = []
-                for _ in range(3):
+                for _ in range(1):
                     x_gen = torch.randn( 1, seq_len).to(device)
                     x_gen = x_gen.repeat(x_src.shape[0], 1)
                     model_kwargs=dict(y=y_src)

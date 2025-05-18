@@ -2,7 +2,7 @@
 global_seed: 0
 ps: 100
 nheads: 12
-nblocks: 24
+nblocks: 12
 hidden: 768
 epochs: 1000000
 lr: 0.0001
