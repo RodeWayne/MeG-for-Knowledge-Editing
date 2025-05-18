@@ -6,19 +6,18 @@ nblocks: 24
 hidden: 768
 epochs: 1000000
 lr: 0.0001
-noisepara_dir: /home/wentao/xzw/data_paras/my_noise_paras
 is_bert_norm: true
 
 # Dynamic config
-bertft_dir: /home/wentao/xzw/LLM/bert_gptj_zsre_checkpoints_infoNCE_case2/model_epoch_100.pth
-paras_dir: /home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/all
-rephrases_dir: /home/wentao/xzw/data_paras/zsre_gptj/zsre_layer_9/train_success_data_gptj_prompt_3_6_neuron_1_layer_9.json
+bertft_dir: checkpoints_trained_bert/bert_gptj_zsre/model_epoch_100.pth
+paras_dir: data_paras/gptj_zsre_10000/paras
+rephrases_dir: data_paras/gptj_zsre_10000/train_success_data_prompt_3_6_neuron_1_layer_9.json
 layer: 9
 seq_len: 8193
 isbert_0or1: 1
 
 # Noise config
-is_noise: true
+is_noise: false
 noisetype: 0
 noise_n1024: 1.0
 noisetype_10or2: 1
@@ -28,4 +27,4 @@ model_para_type: gptj
 data_type: zsre
 gpu: '1'
 batch: 255
-fi: 1024 # 1024 or 10000
+fi: 1024

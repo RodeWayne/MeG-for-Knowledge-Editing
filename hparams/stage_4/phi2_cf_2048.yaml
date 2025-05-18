@@ -27,5 +27,5 @@ model_para_type: phi2
 data_type: cf
 gpu: '1'
 batch: 512
-fi: 1024
+fi: 2048
 

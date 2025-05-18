@@ -9,11 +9,11 @@ lr: 0.0001
 is_bert_norm: true
 
 # Dynamic config
-bertft_dir: checkpoints_trained_bert/bert_phi2_cf/model_epoch_5100.pth
-paras_dir: data_paras/phi2_cf_10000/paras
-rephrases_dir: data_paras/phi2_cf_10000/train_success_data_prompt_1_6_neuron_1_layer_29.json
-layer: 29
-seq_len: 5121
+bertft_dir: checkpoints_trained_bert/bert_gptj_cf/model_epoch_9600.pth
+paras_dir: data_paras/gptj_cf_10000/paras
+rephrases_dir: data_paras/gptj_cf_10000/train_success_data_prompt_3_6_neuron_1_layer_9.json
+layer: 9
+seq_len: 8193
 isbert_0or1: 1
 
 # Noise config
@@ -23,9 +23,8 @@ noise_n1024: 1.0
 noisetype_10or2: 1
 
 # Hyperparameter config
-model_para_type: phi2
+model_para_type: gptj
 data_type: cf
 gpu: '1'
-batch: 512
-fi: 1024
-
+batch: 255
+fi: 4096

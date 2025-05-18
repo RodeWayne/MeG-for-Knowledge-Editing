@@ -1,5 +1,4 @@
 # Fixed config
-global_seed: 0
 ps: 100
 nheads: 12
 nblocks: 24
@@ -9,9 +8,9 @@ lr: 0.0001
 is_bert_norm: true
 
 # Dynamic config
-bertft_dir: checkpoints_trained_bert/bert_phi2_cf/model_epoch_5100.pth
-paras_dir: data_paras/phi2_cf_10000/paras
-rephrases_dir: data_paras/phi2_cf_10000/train_success_data_prompt_1_6_neuron_1_layer_29.json
+bertft_dir:  checkpoints_trained_bert/bert_phi2_zsre/model_epoch_100.pth
+paras_dir: data_paras/phi2_zsre_10000/paras
+rephrases_dir: data_paras/phi2_zsre_10000/train_success_data_prompt_1_6_neuron_1_layer_29.json
 layer: 29
 seq_len: 5121
 isbert_0or1: 1
@@ -24,8 +23,8 @@ noisetype_10or2: 1
 
 # Hyperparameter config
 model_para_type: phi2
-data_type: cf
+data_type: zsre
 gpu: '1'
 batch: 512
-fi: 1024
+fi: 2048
 
