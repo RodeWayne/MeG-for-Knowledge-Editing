@@ -3,18 +3,32 @@ models:
   gptj:
     zsre:
       threshold: 0.3  # zsre
+      bert_checkpoint_path: ./checkpoints_trained_bert/bert_gptj_zsre/model_epoch_100.pth
       edits:
         - edit_size: 1024
           batch_size: 1024  
           epoch: 1800
+        - edit_size: 2048
+          batch_size: 1024  
+          epoch: 3600
+        - edit_size: 4096
+          batch_size: 1024  
+          epoch: 3700
         - edit_size: 10000
           batch_size: 2000  
           epoch: 4000
     cf:
       threshold: 0.7  # cf
+      bert_checkpoint_path: ./checkpoints_trained_bert/bert_gptj_cf/model_epoch_9600.pth
       edits:
         - edit_size: 1024
           batch_size: 1024
+          epoch: 1300
+        - edit_size: 2048
+          batch_size: 1024  
+          epoch: 1600
+        - edit_size: 4096
+          batch_size: 1024  
           epoch: 1300
         - edit_size: 10000
           batch_size: 2000
@@ -24,19 +38,33 @@ models:
   phi2:
     zsre:
       threshold: 0.1
+      bert_checkpoint_path: ./checkpoints_trained_bert/bert_phi2_zsre/model_epoch_100.pth
       edits:
         - edit_size: 1024
           batch_size: 1024
           epoch: 1800
+        - edit_size: 2048
+          batch_size: 1024  
+          epoch: 1400
+        - edit_size: 4096
+          batch_size: 1024  
+          epoch: 2100
         - edit_size: 10000
           batch_size: 2000
           epoch: 4000
     cf:
       threshold: 0.1
+      bert_checkpoint_path: ./checkpoints_trained_bert/bert_phi2_cf/model_epoch_5100.pth
       edits:
         - edit_size: 1024
           batch_size: 1024
           epoch: 1200
+        - edit_size: 2048
+          batch_size: 1024  
+          epoch: 2200
+        - edit_size: 4096
+          batch_size: 1024  
+          epoch: 3000
         - edit_size: 10000
           batch_size: 2000
           epoch: 4000

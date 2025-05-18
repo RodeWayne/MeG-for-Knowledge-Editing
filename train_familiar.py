@@ -249,6 +249,7 @@ def get_config(model_name, data_type, edit_size):
                 "batch_size": edit["batch_size"],
                 "epoch": edit["epoch"],
                 "threshold": task_data["threshold"]
+                "bert_checkpoint_path": task_data["bert_checkpoint_path"]
             }
     return None
 
@@ -267,12 +268,12 @@ if __name__ == "__main__":
     data_type = args.data_type
     data_size = args.data_size
 
-    # checkpoint path for Text Encoder
-    checkpoint_path = f"checkpoints_trained_bert/bert_{model_name}_{data_type}"
-
     config = get_config(model_name, data_type, data_size)
 
     print(config)
+
+    # checkpoint path for Text Encoder
+    checkpoint_path = config['bert_checkpoint_path']
 
     save_path = "./familiar_network/checkpoints/"
     log_save_path = f"./familiar_network/train_log/{model_name}_{data_type}_{data_size}/"+'{}'
