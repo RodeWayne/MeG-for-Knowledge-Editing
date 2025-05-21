@@ -12,10 +12,9 @@ def load_json_data(file_path):
     except (FileNotFoundError, json.JSONDecodeError):
         return []
 
-# 沿用了本来的函数
 def log_result(file_path, message):
-    with open(file_path, "a") as log_file:  # 打开结果日志文件，使用追加模式
-        log_file.write(message + "\n")  # 写入消息并换行
+    with open(file_path, "a") as log_file:
+        log_file.write(message + "\n")
 
 
 def main(args):

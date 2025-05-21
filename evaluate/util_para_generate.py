@@ -123,7 +123,7 @@ class ParaFactory:
             hidden_states = output_bert.last_hidden_state  # [batch_size, seq_len, hidden_dim]
             attention_mask = encoded_bert_input['attention_mask']
             masked_hidden_states = hidden_states * attention_mask.unsqueeze(-1)
-            outhidden = masked_hidden_states[:, 0, :]  # [CLS] 表示序列语义信息
+            outhidden = masked_hidden_states[:, 0, :]
             if self.args.is_normal:
                 outhidden = F.normalize(outhidden, p=2, dim=-1)  # norm
             y0 = outhidden.to(self.device)

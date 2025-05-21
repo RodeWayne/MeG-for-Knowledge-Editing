@@ -163,7 +163,6 @@ class myDiT(nn.Module):
         pos_embed = get_1d_sincos_pos_embed_from_grid(self.pos_embed.shape[-1], np.arange(self.pos_embed.shape[1]))
         self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
         self.dropout = nn.Dropout(0.2)
-        # 初始化
         # self.initialize_weights()
 
     def initialize_weights(self):

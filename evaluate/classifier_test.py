@@ -149,11 +149,11 @@ if __name__ == "__main__":
     dataset = 'cf'  # 'zsre' / 'cf'
     model_name = 'phi2'  # 'phi2' / 'gptj'
     data_size = 1024  # '1024' / '10000'
-    # query = ['What university did Watts Humphrey attend?', 'who played desmond doss father in hacksaw ridge?']  # 问题
-    bert_path = 'checkpoints_trained_bert/bert_phi2_cf/model_epoch_5100.pth'  # 训练好的bert路径
+    # query = ['What university did Watts Humphrey attend?', 'who played desmond doss father in hacksaw ridge?']
+    bert_path = 'checkpoints_trained_bert/bert_phi2_cf/model_epoch_5100.pth'
     output = test(bert_path, dataset, model_name, data_size, querys, device)
     is_rel_kns=output
     # print(output)
-    true_count = sum(is_rel_kns)  # True 作为 1 计算
-    false_count = len(is_rel_kns) - true_count  # False 作为 0 计算
+    true_count = sum(is_rel_kns)  #
+    false_count = len(is_rel_kns) - true_count
     print(f"True: {true_count}, False: {false_count}")

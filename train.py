@@ -79,7 +79,7 @@ def main(args):
     results_dir = "results"
     os.makedirs(results_dir, exist_ok=True)  # Make results folder (holds all experiment subfolders)
     now = datetime.now()
-    time_format_1 = now.strftime("%Y%m%d%H%M%S")  # 年月日时分秒，例如：20240831123045
+    time_format_1 = now.strftime("%Y%m%d%H%M%S")
     experiment_index = len(glob(f"{results_dir}/*"))
     experiment_dir = f"{results_dir}/{experiment_index:03d}_{time_format_1}"  # Create an experiment folder
     checkpoint_dir = f"{experiment_dir}/checkpoints"  # Stores saved model checkpoints
@@ -157,7 +157,7 @@ def main(args):
             y0 = y_src
             t = torch.randint(0, n_steps, (x0.shape[0],)).to(device)  # Pick random time step
             model_kwargs = dict(y=y0)
-            # 混合精度训练
+            # mixed precision training
             with autocast(device_type='cuda'):
                 loss_dict = diffusion.training_losses(denoise, x0, t, model_kwargs)
                 loss = loss_dict["loss"].mean()

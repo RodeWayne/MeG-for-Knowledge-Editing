@@ -116,7 +116,7 @@ class MyDataset(Dataset):
                 # input = query.capitalize()
                 encoded_input = tokenizer(input, return_tensors='pt')
                 outhidden = ""
-                with torch.no_grad():  # 不计算梯度
+                with torch.no_grad():
                     encoded_input = encoded_input.to(f"cuda:{gpu}")
                     output = model(**encoded_input)
                 # 1. Method 1: Get pooler output

@@ -95,7 +95,6 @@ def teach_forcing(all_false_count, all_ids, all_is_rel_kns, all_phrase_para, all
                     input = rephrase
                 elif args.type == "paradit":
                     input = SHORT_ANSWER_PROMPT[args.model_para_type].format(rephrase)
-                # 生成参数
                 l2_norms = np.array([])
                 if args.type == "paradit":
                     para = all_phrase_para[input][1]

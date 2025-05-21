@@ -39,7 +39,7 @@ def main(args):
             is_rel_kns = test(args.bmodel_train_state_path, args.data_type, args.model_para_type, args.fi, querys,
                               device)
         else:
-            is_rel_kns = torch.ones(len(querys), dtype=torch.bool).to(device)  # 全 True
+            is_rel_kns = torch.ones(len(querys), dtype=torch.bool).to(device)
         true_count = sum(is_rel_kns)
         false_count = len(is_rel_kns) - true_count
         print(f"True: {true_count}, False: {false_count}")
@@ -154,7 +154,7 @@ def teach_forcing(all_ids, all_is_rel_kns, args, current_time, data, device, edi
     elapsed_time_mid = format_elapsed_time(mid_time - start_time)
     all["mid_cost_time"] = elapsed_time_mid
     end_time = time.time()
-    elapsed_time = format_elapsed_time(end_time - start_time)  # 格式化耗时
+    elapsed_time = format_elapsed_time(end_time - start_time)
     all["end_cost_time"] = elapsed_time
     if args.type == "memit":
         file_path = os.path.join(f"{args.result_path}/result_tf", f'all_sr.json')

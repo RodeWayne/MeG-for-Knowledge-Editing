@@ -9,7 +9,7 @@ from classifier_test import  test
 from itertools import chain
 import numpy as np
 def main(args):
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 当前时间格式化
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     start_time = time.time()
     device, edit_model, tokenizer, para_factory, zsre_datas_range, all_ids, xparas = initDeviceModelDataAndParadit(args)
     if args.type == "paradit":
@@ -169,7 +169,7 @@ def self_recursive(all_ids, all_is_rel_kns, args, current_time, data, device, ed
     elapsed_time_mid = format_elapsed_time(mid_time - start_time)
     all["mid_cost_time"] = elapsed_time_mid
     end_time = time.time()
-    elapsed_time = format_elapsed_time(end_time - start_time)  # 格式化耗时
+    elapsed_time = format_elapsed_time(end_time - start_time)
     all["end_cost_time"] = elapsed_time
     if args.type == "memit":
         file_path = os.path.join(f"{args.result_path}/result", f'all_lr_zsre.json')

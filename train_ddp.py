@@ -72,12 +72,12 @@ def main(args):
     accelerator = Accelerator()
     device = accelerator.device.index
 
-    # 1. 准备日志
+    # 1. prepare log
     if accelerator.is_main_process:
         results_dir = "results"
         os.makedirs(results_dir, exist_ok=True)  # Make results folder (holds all experiment subfolders)
         now = datetime.now()
-        time_format_1 = now.strftime("%Y%m%d%H%M%S")  # 年月日时分秒，例如：20240831123045
+        time_format_1 = now.strftime("%Y%m%d%H%M%S")
         experiment_index = len(glob(f"{results_dir}/*"))
         experiment_dir = f"{results_dir}/{experiment_index:03d}_{time_format_1}"  # Create an experiment folder
         checkpoint_dir = f"{experiment_dir}/checkpoints"  # Stores saved model checkpoints

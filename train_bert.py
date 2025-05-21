@@ -21,7 +21,6 @@ class CustomDataset(Dataset):
         self.datas = []
         self.SHORT_ANSWER_PROMPT = {'phi2': "Instruct:Answer the following question in less than 5 words. {}\nOutput:",
                                'gptj': 'Q: Answer the following question in less than 5 words. {}\nA:'}
-        # 加载数据
         with open(data_dir, "r") as f:
             self.orig_data = json.load(f)
         raw_data = self.orig_data[-2000:]
@@ -70,7 +69,7 @@ def info_nce_loss(query, positive_key, negative_keys, temperature=0.1):
     # Compute negative sample similarity, but exclude the corresponding positive sample position
     all_sim = torch.matmul(query, negative_keys.T)  # (batch_size, batch_size)
     mask = torch.eye(batch_size, device=query.device, dtype=torch.bool)
-    negatives = all_sim.masked_fill(mask, float('-inf'))  # 屏蔽自身
+    negatives = all_sim.masked_fill(mask, float('-inf'))
 
     # Combine logits
     logits = torch.cat([positive_sim, negatives], dim=1)  # (batch_size, batch_size)
@@ -108,10 +107,10 @@ def train_model(data_dir,save_path, gpu, model_para_type,data_type,temperature, 
             orig = tokenizer(data["orig"], return_tensors="pt", padding=True, truncation=True).to(f"cuda:{gpu}")
             phrase = tokenizer(data["phrase"], return_tensors="pt", padding=True, truncation=True).to(f"cuda:{gpu}")
             # Get the embedding vectors
-            orig_embed = model(**orig).last_hidden_state[:, 0, :]  # 取 [CLS] token 的输出
-            phrase_embed = model(**phrase).last_hidden_state[:, 0, :]  # 取 [CLS] token 的输出
+            orig_embed = model(**orig).last_hidden_state[:, 0, :]
+            phrase_embed = model(**phrase).last_hidden_state[:, 0, :]
             #  Compute InfoNCE Loss
-            loss = info_nce_loss(phrase_embed, orig_embed, orig_embed,temperature=temperature)  # orig_embed 作为负样本池
+            loss = info_nce_loss(phrase_embed, orig_embed, orig_embed,temperature=temperature)
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
