@@ -68,3 +68,38 @@ models:
         - edit_size: 10000
           batch_size: 2000
           epoch: 4000
+
+    # Phi-2
+  llama3:
+    zsre:
+      threshold: 0.3
+      bert_checkpoint_path: ./checkpoints_trained_bert/bert_llama3_zsre/model_epoch_100.pth
+      edits:
+        - edit_size: 1024
+          batch_size: 1024
+          epoch: 1000
+        - edit_size: 2048
+          batch_size: 1024  
+          epoch: 4000
+        - edit_size: 4096
+          batch_size: 1024  
+          epoch: 3100
+        - edit_size: 10000
+          batch_size: 2000
+          epoch: 3800
+    cf:
+      threshold: 0.3
+      bert_checkpoint_path: ./checkpoints_trained_bert/bert_llama3_cf/model_epoch_6300.pth
+      edits:
+        - edit_size: 1024
+          batch_size: 1024
+          epoch: 1400
+        - edit_size: 2048
+          batch_size: 1024  
+          epoch: 1300
+        - edit_size: 4096
+          batch_size: 1024  
+          epoch: 1900
+        - edit_size: 10000
+          batch_size: 2000
+          epoch: 3800

@@ -258,7 +258,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Train familiarity network with configurable parameters")
     parser.add_argument("--gpu", type=int, default=0, help="GPU index to use")
-    parser.add_argument("--model_type", type=str, default="phi2", choices=["gptj", "phi2"], help="Model parameter type (e.g., gptj)")
+    parser.add_argument("--model_type", type=str, default="phi2", choices=["gptj", "phi2", "llama3"], help="Model parameter type (e.g., gptj)")
     parser.add_argument("--data_type", type=str, default="zsre", choices=["zsre", "cf"], help="Data type")
     parser.add_argument("--data_size", type=int, default=1024, help="edit data size")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
