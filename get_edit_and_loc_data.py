@@ -6,7 +6,7 @@ from util import *
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_type", type=str, default="gptj", choices=["gptj", "phi2"], help="Model parameter type (e.g., gptj)")
+    parser.add_argument("--model_type", type=str, default="gptj", choices=["llama3","gptj", "phi2"], help="Model parameter type (e.g., gptj)")
     parser.add_argument("--data_type", type=str, default="cf", choices=["zsre", "cf"], help="Data type")
     parser.add_argument('--gpu', type=str, default='0')
     return parser.parse_args()
@@ -18,7 +18,7 @@ def get_llm_response(model_name, model, tokenizer, query):
         outputs = model.generate(**inputs, max_length=inputs['input_ids'].shape[1] + 20)
         outputs = outputs[:, inputs['input_ids'].shape[1]:]
         prediction = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
-        if model_name == 'gptj':
+        if model_name == 'gptj' or model_name == 'llama3':
             stop_sequence="\n"
             prediction = prediction.split(stop_sequence)[0]
         prediction = prediction.strip().rstrip('.')
@@ -45,6 +45,9 @@ if __name__ == '__main__':
 
     if model_name == 'gptj':
         model, tokenizer = get_model("EleutherAI/gpt-j-6B")
+
+    if model_name == 'llama3':
+        model, tokenizer = get_model("meta-llama/Meta-Llama-3-8B-Instruct")
 
     model.to(device)
     model.eval()
