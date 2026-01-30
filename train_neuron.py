@@ -45,6 +45,12 @@ def save_param(save_path, model):
             elif layer_name == 'transformer.h.{}.mlp.fc_out.weight'.format(layer):
                 selected_layers_state_dict[layer_name] = params[:, -neuron_num:].tolist()
 
+        if model_name == 'llama3':
+            if layer_name == 'model.layers.{}.mlp.extra_proj.weight'.format(layer):
+                selected_layers_state_dict[layer_name] = params.tolist()
+            elif layer_name == 'model.layers.{}.mlp.down_proj.weight'.format(layer):
+                selected_layers_state_dict[layer_name] = params[:, -neuron_num:].tolist()
+
     with open(os.path.join(save_path, 'params_0.json'), 'w') as file:
         json.dump(selected_layers_state_dict, file, indent=4)
 
@@ -72,6 +78,10 @@ def train_once(model, tokenizer, train_item, initial_layer_1_add_weight, initial
             model.transformer.h[layer].mlp.fc_in.bias[-neuron_num:] = initial_layer_1_add_bias
             model.transformer.h[layer].mlp.fc_out.weight[:, -neuron_num:] = initial_layer_2_add_weight
 
+    if model_name == 'llama3':
+        with torch.no_grad():
+            model.model.layers[layer].mlp.extra_proj.weight.data = initial_layer_1_add_weight
+            model.model.layers[layer].mlp.down_proj.weight[:, -neuron_num:] = initial_layer_2_add_weight
 
     if dataset == 'zsre':
         query_prompt = query_prompt_dict[query_method].format(train_item['src'])
@@ -109,6 +119,13 @@ def train_once(model, tokenizer, train_item, initial_layer_1_add_weight, initial
         loss.backward()
         optimizer.step()
         writer.add_scalar('loss', loss.item(), epoch)
+
+        if model_name == 'llama3':
+            if epoch % epochs == 0:
+                label,prediction = test(model,tokenizer,query_prompt,train_item,dataset)
+                if label.lower() == prediction.lower():
+                    success = True
+                break
 
         if model_name == 'phi2':
             if epoch % epochs == 0:
@@ -172,7 +189,7 @@ def get_config(model_name, data_type):
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', type=str, default='0')
-    parser.add_argument("--model_type", type=str, default="phi2", choices=["gptj", "phi2"], help="Model parameter type (e.g., gptj)")
+    parser.add_argument("--model_type", type=str, default="phi2", choices=["gptj", "phi2", "llama3"], help="Model parameter type (e.g., gptj)")
     parser.add_argument("--data_type", type=str, default="zsre", choices=["zsre", "cf"], help="Data type")
     parser.add_argument('--data_size', type=int, default=10000)
     return parser.parse_args()
@@ -221,6 +238,21 @@ if __name__ == '__main__':
         initial_layer_1_add_weight = model.transformer.h[layer].mlp.fc_in.weight[-neuron_num:, :].clone().detach()
         initial_layer_1_add_bias = model.transformer.h[layer].mlp.fc_in.bias[-neuron_num].clone().detach()
         initial_layer_2_add_weight = model.transformer.h[layer].mlp.fc_out.weight[:, -neuron_num:].clone().detach()
+
+    if model_name == 'llama3':
+        model, tokenizer = initial_llama_model(neuron_num,layer)
+        for n, p in model.named_parameters():
+            p.requires_grad = False
+        intermediate_size = 14336
+        
+        model.model.layers[layer].mlp.down_proj.weight.requires_grad = True
+        model.model.layers[layer].mlp.extra_proj.weight.requires_grad = True
+        
+        freeze_partial_weights_2(model.model.layers[layer].mlp.down_proj.weight, intermediate_size)
+        
+        initial_layer_1_add_weight = model.model.layers[layer].mlp.extra_proj.weight.clone().detach()
+        initial_layer_1_add_bias = None
+        initial_layer_2_add_weight = model.model.layers[layer].mlp.down_proj.weight[:, -neuron_num:].clone().detach()
 
     model.to(device)
     

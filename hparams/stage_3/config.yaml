@@ -40,3 +40,20 @@ models:
       method: '1_6'
       data_path: './data/edit_data/phi2_cf_edit.json'
       epochs: 80
+
+  # Llama-3
+  llama3:
+    zsre:
+      layer: 14
+      neuron_num: 1
+      lr: 0.02
+      method: '4_9'
+      data_path: './data/edit_data/llama3_zsre_edit.json'
+      epochs: 50
+    cf:
+      layer: 14
+      neuron_num: 1
+      lr: 0.02
+      method: '4_9'
+      data_path: './data/edit_data/llama3_cf_edit.json'
+      epochs: 50

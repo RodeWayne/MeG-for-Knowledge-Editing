@@ -69,7 +69,7 @@ models:
           batch_size: 2000
           epoch: 4000
 
-    # Phi-2
+  # Llama-3
   llama3:
     zsre:
       threshold: 0.3

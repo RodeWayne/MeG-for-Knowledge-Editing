@@ -6,15 +6,61 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import torch.nn as nn
 
+class PatchedLlamaMLP(nn.Module):
+    def __init__(self, neuron_num,original_mlp):
+        super().__init__()
+        self.hidden_size = original_mlp.hidden_size
+        self.intermediate_size = original_mlp.intermediate_size
+        self.config = original_mlp.config
+        self.act_fn = original_mlp.act_fn
+
+        self.gate_proj = original_mlp.gate_proj
+        self.up_proj = original_mlp.up_proj
+
+        self.extra_proj = nn.Linear(self.hidden_size, neuron_num, bias=False,dtype=original_mlp.down_proj.weight.dtype)
+
+        # down_proj: [hidden_size, intermediate_size + 1]
+        self.down_proj = nn.Linear(self.intermediate_size + neuron_num, self.hidden_size, bias=False,dtype=original_mlp.down_proj.weight.dtype)
+
+        with torch.no_grad():
+            self.down_proj.weight[:, :-neuron_num] = original_mlp.down_proj.weight
+        
+
+    def forward(self, x):
+        if self.config.pretraining_tp > 1:
+            raise NotImplementedError("pretraining_tp > 1 is not supported in patched version.")
+
+        gate_out = self.gate_proj(x)  # [B, T, I]
+        up_out = self.up_proj(x)      # [B, T, I]
+        intermediate = self.act_fn(gate_out) * up_out  # [B, T, I]
+
+        extra = self.extra_proj(x)  # [B, T, 1]
+
+        intermediate_aug = torch.cat([intermediate, extra], dim=-1)  # [B, T, I+1]
+
+        out = self.down_proj(intermediate_aug)  # [B, T, H]
+        return out
+    
+def initial_llama_model(neuron_num, layer):
+    model, tokenizer = get_model('meta-llama/Meta-Llama-3-8B-Instruct')
+    original_mlp = model.model.layers[layer].mlp
+    patched_mlp = PatchedLlamaMLP(neuron_num, original_mlp)
+    model.model.layers[layer].mlp = patched_mlp
+    return model, tokenizer
+
+
 
 SHORT_ANSWER_PROMPT = {'phi2':"Instruct:Answer the following question in less than 5 words. {}\nOutput:",
-                       'gptj':'Q: Answer the following question in less than 5 words. {}\nA:'}
+                       'gptj':'Q: Answer the following question in less than 5 words. {}\nA:',
+                       'llama3':'Answer the following question in less than 5 words: {} \nAnswer:'}
 
 query_prompt_dict = {1:"Instruct:Answer the following question in less than 5 words. {}\nOutput:",
                         2:"[INST]{}[/INST]",3:'Instruct: {}\nOutput:',
-                        3:"Q: Answer the following question in less than 5 words. {}\nA:"}
+                        3:"Q: Answer the following question in less than 5 words. {}\nA:",
+                        4:'Answer the following question in less than 5 words: {} \nAnswer:'}
 answer_prompt_dict = {1:'{}<|endoftext|>', 2:'{}.', 3:'{}</s>', 4:'</s>{}</s>', 5:'{}.<|endoftext|>',
-                        6:' {}.<|endoftext|>', 7:' {}<|endoftext|>', 8:' {}.\n<|endoftext|>'}
+                        6:' {}.<|endoftext|>', 7:' {}<|endoftext|>', 8:' {}.\n<|endoftext|>', 
+                        9:' {}.<|end_of_text|>'}
 
 def adjust_dots(s):
     if s.endswith('..'):  # If the string ends with two dots
