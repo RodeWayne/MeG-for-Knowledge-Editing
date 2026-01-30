@@ -38,3 +38,15 @@ for d in raw_data:
 
 with open('./data/train_familiar/zsre_phi2_fake_id_class.json','w') as file:
     json.dump(raw_data, file, indent=4) 
+
+
+data_dir = './data/edit_data/llama3_zsre_edit.json'
+with open(data_dir, "r") as f:
+    raw_data = json.load(f)
+raw_data = raw_data[0:10000]
+
+for d in raw_data:
+    d['fake_label'] = random.randint(0, 9)
+
+with open('./data/train_familiar/zsre_llama3_fake_id_class.json','w') as file:
+    json.dump(raw_data, file, indent=4) 
