@@ -43,6 +43,8 @@ class ParaFactory:
             self.seq_len = 5121
         elif model_para_type =="gptj":
             self.seq_len = 8193
+        elif model_para_type == "llama3":
+            self.seq_len = 8192
         seq_len_y = 768
         patchsize = ps
         denoise = myDiT(seq_len=self.seq_len, patch_size=patchsize, hidden_size=hidden, num_heads=nheads,
@@ -60,7 +62,7 @@ class ParaFactory:
         gc.collect()
         torch.cuda.empty_cache()
         self.denoise.eval()  # important!
-        self.diffusion = create_diffusion(str(100),predict_v=True)
+        self.diffusion = create_diffusion(str(50),predict_v=True)
 
 
     def generate(self,input,gtype,srcmodel,srctokenizer,layer):
@@ -208,6 +210,12 @@ def init_model_phi2(model_para_type,model_path,device,layer,is_fc2bias):
             model.transformer.h[layer].mlp.fc_in.bias[:num] = original_layer_1.bias[:num].clone().detach()
             model.transformer.h[layer].mlp.fc_out.weight[:, :num] = original_layer_2.weight[:, :num].clone().detach()
             model.transformer.h[layer].mlp.fc_out.bias = original_layer_2.bias
+    elif model_para_type == "llama3":
+        model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16,
+                                                     trust_remote_code=True)
+        original_mlp = model.model.layers[layer].mlp
+        patched_mlp = PatchedLlamaMLP(1, original_mlp)
+        model.model.layers[layer].mlp = patched_mlp
     return model.to(device)
 
 def get_edit_model_memit(model,device,model_state_dir):
@@ -238,6 +246,13 @@ def get_edit_model(model_para_type,model,x_recov,layer):
         model.transformer.h[layer].mlp.fc_in.weight[-1:, :] = torch.tensor(fc1_weight_recovered, dtype=torch.float16)
         model.transformer.h[layer].mlp.fc_in.bias[-1] = torch.tensor(fc1_bias_recovered, dtype=torch.float16)
         model.transformer.h[layer].mlp.fc_out.weight[:, -1:] = torch.tensor(fc2_weight_recovered, dtype=torch.float16)
+    elif model_para_type == "llama3":
+        fc1_weight_recovered = sample[:4096]
+        fc1_weight_recovered = fc1_weight_recovered.view(1, 4096)
+        fc2_weight_recovered = sample[4096:]
+        fc2_weight_recovered = fc2_weight_recovered.view(4096, 1)
+        model.model.layers[layer].mlp.extra_proj.weight.data = torch.tensor(fc1_weight_recovered, dtype=torch.float16)
+        model.model.layers[layer].mlp.down_proj.weight[:, -1:] = torch.tensor(fc2_weight_recovered, dtype=torch.float16)
     return model
 
 def getValidFileid(model_para_type,root_dir,casenum,layer):
@@ -262,6 +277,10 @@ def getValidFileid(model_para_type,root_dir,casenum,layer):
                             fc1_weight = torch.tensor(data[f'transformer.h.{layer}.mlp.fc_in.weight'])
                             fc1_bias = torch.tensor(data[f'transformer.h.{layer}.mlp.fc_in.bias'])
                             fc2_weight = torch.tensor(data[f'transformer.h.{layer}.mlp.fc_out.weight'])
+                        elif model_para_type == "llama3":
+                            fc1_weight = torch.tensor(data[f'model.layers.{layer}.mlp.extra_proj.weight'])
+                            fc1_bias = torch.tensor([])
+                            fc2_weight = torch.tensor(data[f'model.layers.{layer}.mlp.down_proj.weight'])
                         x = torch.cat([fc1_weight.flatten(), fc1_bias.flatten(), fc2_weight.flatten()])
                         xparas.append(x)
                         print(len(xparas))
@@ -368,7 +387,9 @@ def format_elapsed_time(seconds):
     minutes, seconds = divmod(remainder, 60)
     return f"{days}d {hours}h {minutes}m {seconds}s"
 SHORT_ANSWER_PROMPT = {'phi2': "Instruct:Answer the following question in less than 5 words. {}\nOutput:",
-                       'gptj': 'Q: Answer the following question in less than 5 words. {}\nA:'}
+                       'gptj': 'Q: Answer the following question in less than 5 words. {}\nA:',
+                       'llama3': 'Answer the following question in less than 5 words: {} \nAnswer:'
+                       }
 
 
 

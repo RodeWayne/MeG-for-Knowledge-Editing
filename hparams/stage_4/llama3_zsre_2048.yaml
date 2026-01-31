@@ -1,0 +1,31 @@
+# Fixed config
+ps: 100
+nheads: 12
+nblocks: 12
+hidden: 768
+epochs: 1000000
+lr: 0.0001
+is_bert_norm: true
+
+# Dynamic config
+bertft_dir:  checkpoints_trained_bert/bert_llama3_zsre/model_epoch_100.pth
+paras_dir: data_paras/llama3_zsre_10000/paras
+rephrases_dir: data_paras/llama3_zsre_10000/train_success_data_prompt_1_6_neuron_1_layer_29.json
+layer: 14
+seq_len: 8192
+isbert_0or1: 1
+
+# Noise config
+is_noise: false
+noisetype: 0
+noise_n1024: 1.0
+noisetype_10or2: 1
+noisephrases_dir: data/new_split_data/zsre_for_bert_train.json
+
+# Hyperparameter config
+model_para_type: llama3
+data_type: zsre
+gpu: '1'
+batch: 255
+fi: 2048
+

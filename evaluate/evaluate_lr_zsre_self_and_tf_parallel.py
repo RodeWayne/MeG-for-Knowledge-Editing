@@ -115,9 +115,11 @@ def self_recursive(all_ids, all_is_rel_kns, args, current_time, data, device, ed
                                       )
     elif args.model_para_type == "gptj":
         outputs = edit_model.generate(**input, max_length=input['input_ids'].shape[1] + 20)
+    elif args.model_para_type == "llama3":
+        outputs = edit_model.generate(**input, max_length=input['input_ids'].shape[1] + 20)
     outputs = outputs[:, input['input_ids'].shape[1]:]
     prediction = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
-    if args.model_para_type == "gptj":
+    if args.model_para_type == "gptj" or  args.model_para_type == "llama3":
         stop_sequence = "\n"
         prediction = prediction.split(stop_sequence)[0]
     prediction = prediction.strip().rstrip('.')

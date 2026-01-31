@@ -42,7 +42,9 @@ class MyDataset(Dataset):
             with open(noisephrases_dir, "r") as f:
                 noise_data = json.load(f)
         SHORT_ANSWER_PROMPT = {'phi2': "Instruct:Answer the following question in less than 5 words. {}\nOutput:",
-                               'gptj': 'Q: Answer the following question in less than 5 words. {}\nA:'}
+                               'gptj': 'Q: Answer the following question in less than 5 words. {}\nA:',
+                               'llama3': 'Answer the following question in less than 5 words: {} \nAnswer:'
+                               }
 
         for subdir in os.listdir(paras_dir):
             subdir_path = os.path.join(paras_dir, subdir)
@@ -62,6 +64,10 @@ class MyDataset(Dataset):
                                 fc1_weight = torch.tensor(data[f'transformer.h.{layer}.mlp.fc_in.weight'])
                                 fc1_bias = torch.tensor(data[f'transformer.h.{layer}.mlp.fc_in.bias'])
                                 fc2_weight = torch.tensor(data[f'transformer.h.{layer}.mlp.fc_out.weight'])
+                            elif model_para_type == "llama3":
+                                fc1_weight = torch.tensor(data[f'model.layers.{layer}.mlp.extra_proj.weight'])
+                                fc1_bias = torch.tensor([])
+                                fc2_weight = torch.tensor(data[f'model.layers.{layer}.mlp.down_proj.weight'])
                             x = torch.cat([fc1_weight.flatten(), fc1_bias.flatten(), fc2_weight.flatten()])
                             self.xparas.append(x)
                             learning_prompt = SHORT_ANSWER_PROMPT[model_para_type].format(data_by_id[int(subdir_path.split('_')[-1])])

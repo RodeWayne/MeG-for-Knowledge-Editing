@@ -86,11 +86,19 @@ checkpoint_path_map = {
     'gptj_cf_1024': os.path.join(basedir, 'gptj_cf_1024.pth'),
     'gptj_cf_2048': os.path.join(basedir, 'gptj_cf_2048.pth'),
     'gptj_cf_4096': os.path.join(basedir, 'gptj_cf_4096.pth'),
-    'gptj_cf_10000': os.path.join(basedir, 'gptj_cf_10000.pth')
+    'gptj_cf_10000': os.path.join(basedir, 'gptj_cf_10000.pth'),
+    'llama3_zsre_1024': os.path.join(basedir, 'llama3_zsre_1024.pth'),
+    'llama3_zsre_2048': os.path.join(basedir, 'llama3_zsre_2048.pth'),
+    'llama3_zsre_4096': os.path.join(basedir, 'llama3_zsre_4096.pth'),
+    'llama3_zsre_10000': os.path.join(basedir, 'llama3_zsre_10000.pth'),
+    'llama3_cf_1024': os.path.join(basedir, 'llama3_cf_1024.pth'),
+    'llama3_cf_2048': os.path.join(basedir, 'llama3_cf_2048.pth'),
+    'llama3_cf_4096': os.path.join(basedir, 'llama3_cf_4096.pth'),
+    'llama3_cf_10000': os.path.join(basedir, 'llama3_cf_10000.pth'),
 
 }
 
-entropy_threshold_map = {'gptj_zsre': 0.3, 'gptj_cf': 0.7, 'phi2_zsre': 0.1, 'phi2_cf': 0.1}
+entropy_threshold_map = {'gptj_zsre': 0.3, 'gptj_cf': 0.7, 'phi2_zsre': 0.1, 'phi2_cf': 0.1, 'llama3_zsre':0.3,'llama3_cf':0.6}
 
 
 # Return True if it is determined to be relevant knowledge, otherwise return False.

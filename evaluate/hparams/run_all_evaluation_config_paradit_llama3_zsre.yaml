@@ -1,0 +1,23 @@
+type: "paradit"
+gpu: "4"
+model_path: "meta-llama/Meta-Llama-3-8B-Instruct"
+model_state_dir: "results/204_20250307074919/checkpoints/model_epoch_all_50000.pth"
+data_type: "zsre"
+data_range: 1024 # 1022 1005
+fi: 1024 # 1024
+layer: 14 # 29
+noisetype: 0
+ps: 100
+is_fc2bias: true   # true false
+hidden: 768
+nheads: 12
+gtype: "bert2para" # hidden2para  bert2para
+batch_size: 512
+temp: newzsre # zsre
+bmodel_train_state_path: "checkpoints_trained_bert/bert_llama3_zsre/model_epoch_100.pth"
+result_path: "result_evaluation/"
+model_para_type: "llama3" # phi2 gptj
+para_dir: 'data_paras/llama3_zsre_10000/paras'
+data_dir: 'data/edit_data/llama3_zsre_edit.json'
+is_normal: true
+is_rel: true
