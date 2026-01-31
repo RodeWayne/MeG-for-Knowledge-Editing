@@ -20,7 +20,9 @@ class CustomDataset(Dataset):
     def __init__(self, data_dir,model_para_type,data_type):
         self.datas = []
         self.SHORT_ANSWER_PROMPT = {'phi2': "Instruct:Answer the following question in less than 5 words. {}\nOutput:",
-                               'gptj': 'Q: Answer the following question in less than 5 words. {}\nA:'}
+                               'gptj': 'Q: Answer the following question in less than 5 words. {}\nA:',
+                                       'llama3':'Answer the following question in less than 5 words: {} \nAnswer:'
+        }
         with open(data_dir, "r") as f:
             self.orig_data = json.load(f)
         raw_data = self.orig_data[-2000:]
