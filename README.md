@@ -1,5 +1,5 @@
 # MeG-for-Knowledge-Editing
-This is the official implementation of the ICLR-2026 accepted paper "Massive Editing for Large Language Models Based on Dynamic Weight Generation."
+Official code for the paper "Massive Editing for Large Language Models Based on Dynamic Weight Generation" (ICLR-26)
 
 
 
